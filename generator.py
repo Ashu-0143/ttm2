@@ -25,29 +25,57 @@ def generate_clash_free_timetable(sections):
         for subject in section.subjects:
             subject.teacher.current_load = 0
     
-    # Phase 1: Place lab subjects first (need consecutive slots)
+    # Phase 1: Place lab subjects first (need consecutive slots that don't cross lunch)
     for section in sections:
         lab_subjects = [s for s in section.subjects if s.is_lab]
         for lab_subject in lab_subjects:
             teacher_name = lab_subject.teacher.name
             placed = False
             attempts = 0
-            max_attempts = 100
+            max_attempts = 200  # Increased attempts due to lunch constraints
+            
+            lunch_period = section.get_lunch_period()
+            periods_before_lunch = section.get_available_periods_before_lunch()
+            periods_after_lunch = section.get_available_periods_after_lunch()
             
             while not placed and attempts < max_attempts:
                 day = random.randint(0, days-1)
-                start_period = random.randint(0, periods - lab_subject.block_size)
+                
+                # Try to place lab block either completely before or after lunch
+                possible_slots = []
+                
+                # Check if lab can fit before lunch
+                if len(periods_before_lunch) >= lab_subject.block_size:
+                    for start in range(len(periods_before_lunch) - lab_subject.block_size + 1):
+                        end = start + lab_subject.block_size
+                        if end <= len(periods_before_lunch):
+                            possible_slots.append((start, start + lab_subject.block_size))
+                
+                # Check if lab can fit after lunch
+                if len(periods_after_lunch) >= lab_subject.block_size:
+                    for start in range(len(periods_after_lunch) - lab_subject.block_size + 1):
+                        actual_start = periods_after_lunch[start]
+                        actual_end = actual_start + lab_subject.block_size
+                        if actual_end <= 7:  # Make sure we don't exceed day periods
+                            possible_slots.append((actual_start, actual_end))
+                
+                if not possible_slots:
+                    attempts += 1
+                    continue
+                
+                # Randomly choose one of the possible slots
+                start_period, end_period = random.choice(possible_slots)
                 
                 # Check if all consecutive periods are free in section timetable
                 section_slots_free = all(
                     section.timetable[day][p] is None 
-                    for p in range(start_period, start_period + lab_subject.block_size)
+                    for p in range(start_period, end_period)
                 )
                 
                 # Check if teacher is available for all consecutive periods
                 teacher_available = all(
                     teacher_schedule[teacher_name][day][p] is None 
-                    for p in range(start_period, start_period + lab_subject.block_size)
+                    for p in range(start_period, end_period)
                 )
                 
                 # Check teacher load capacity
@@ -55,7 +83,7 @@ def generate_clash_free_timetable(sections):
                 
                 if section_slots_free and teacher_available and teacher_can_handle:
                     # Place the lab subject
-                    for p in range(start_period, start_period + lab_subject.block_size):
+                    for p in range(start_period, end_period):
                         section.timetable[day][p] = lab_subject
                         teacher_schedule[teacher_name][day][p] = section.name
                     
@@ -82,7 +110,11 @@ def generate_clash_free_timetable(sections):
                 
                 while not placed and attempts < max_attempts:
                     day = random.randint(0, days-1)
-                    period = random.randint(0, periods-1)
+                    
+                    # Avoid placing theory subjects during lunch period
+                    lunch_period = section.get_lunch_period()
+                    available_periods = [p for p in range(periods) if p != lunch_period]
+                    period = random.choice(available_periods)
                     
                     # Check section slot is free
                     section_slot_free = section.timetable[day][period] is None

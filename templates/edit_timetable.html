@@ -108,22 +108,29 @@
                                 ondragover="handleDragOver(event)">
                                 {% set subject = timetable.schedule[day_index][period_index] %}
                                 {% if subject %}
-                                    <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %} editable-subject"
-                                         draggable="true"
-                                         ondragstart="handleDragStart(event)"
-                                         data-subject-name="{{ subject.name }}"
-                                         data-teacher="{{ subject.teacher }}"
-                                         data-is-lab="{{ subject.is_lab }}"
-                                         onclick="selectSubject(this)">
-                                        <div class="fw-bold">{{ subject.name }}</div>
-                                        <small>{{ subject.teacher }}</small>
-                                        {% if subject.is_lab %}
-                                            <div><small><i class="fas fa-flask"></i> Lab</small></div>
-                                        {% endif %}
-                                        <div class="edit-indicator">
-                                            <i class="fas fa-arrows-alt"></i>
+                                    {% if subject.is_lunch %}
+                                        <div class="lunch-cell">
+                                            <div class="fw-bold"><i class="fas fa-utensils me-1"></i>LUNCH</div>
+                                            <small>Break Time</small>
                                         </div>
-                                    </div>
+                                    {% else %}
+                                        <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %} editable-subject"
+                                             draggable="true"
+                                             ondragstart="handleDragStart(event)"
+                                             data-subject-name="{{ subject.name }}"
+                                             data-teacher="{{ subject.teacher }}"
+                                             data-is-lab="{{ subject.is_lab }}"
+                                             onclick="selectSubject(this)">
+                                            <div class="fw-bold">{{ subject.name }}</div>
+                                            <small>{{ subject.teacher }}</small>
+                                            {% if subject.is_lab %}
+                                                <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                            {% endif %}
+                                            <div class="edit-indicator">
+                                                <i class="fas fa-arrows-alt"></i>
+                                            </div>
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <div class="empty-cell p-2 drop-zone">
                                         <small class="text-muted">Free</small>

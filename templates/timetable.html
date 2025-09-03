@@ -102,13 +102,20 @@
                             <td class="timetable-cell text-center">
                                 {% set subject = timetable.schedule[day_index][period_index] %}
                                 {% if subject %}
-                                    <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %}">
-                                        <div class="fw-bold">{{ subject.name }}</div>
-                                        <small>{{ subject.teacher }}</small>
-                                        {% if subject.is_lab %}
-                                            <div><small><i class="fas fa-flask"></i> Lab</small></div>
-                                        {% endif %}
-                                    </div>
+                                    {% if subject.is_lunch %}
+                                        <div class="lunch-cell">
+                                            <div class="fw-bold"><i class="fas fa-utensils me-1"></i>LUNCH</div>
+                                            <small>Break Time</small>
+                                        </div>
+                                    {% else %}
+                                        <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %}">
+                                            <div class="fw-bold">{{ subject.name }}</div>
+                                            <small>{{ subject.teacher }}</small>
+                                            {% if subject.is_lab %}
+                                                <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <div class="empty-cell p-2">
                                         <small class="text-muted">Free</small>
@@ -129,7 +136,7 @@
                     {% set subject_data = {} %}
                     {% for day in timetable.schedule %}
                         {% for period in day %}
-                            {% if period %}
+                            {% if period and not period.is_lunch %}
                                 {% set _ = subject_data.update({period.name: {'count': subject_data.get(period.name, {}).get('count', 0) + 1, 'is_lab': period.is_lab}}) %}
                             {% endif %}
                         {% endfor %}

@@ -10,30 +10,51 @@ def print_section_timetable(section):
         print(days[d], " | ", " | ".join(row))
 
 def format_timetable_for_web(section):
-    """Format timetable data for web display"""
+    """Format timetable data for web display with lunch periods"""
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    periods = ["Period 1", "Period 2", "Period 3", "Period 4", "Period 5", "Period 6", "Period 7"]
+    lunch_period = section.get_lunch_period()
+    
+    # Create period labels with lunch
+    periods = []
+    for i in range(7):
+        if i == lunch_period:
+            periods.append("LUNCH")
+        elif i < lunch_period:
+            periods.append(f"Period {i + 1}")
+        else:
+            periods.append(f"Period {i}")
     
     timetable_data = {
         'section_name': section.name,
         'section_year': section.year,
         'days': days,
         'periods': periods,
-        'schedule': []
+        'schedule': [],
+        'lunch_period': lunch_period
     }
     
     for d in range(6):
         day_schedule = []
         for p in range(7):
-            subject = section.timetable[d][p]
-            if subject:
+            if p == lunch_period:
+                # Add lunch break
                 day_schedule.append({
-                    'name': subject.name,
-                    'teacher': subject.teacher.name,
-                    'is_lab': subject.is_lab
+                    'name': 'LUNCH',
+                    'teacher': '',
+                    'is_lab': False,
+                    'is_lunch': True
                 })
             else:
-                day_schedule.append(None)
+                subject = section.timetable[d][p]
+                if subject:
+                    day_schedule.append({
+                        'name': subject.name,
+                        'teacher': subject.teacher.name,
+                        'is_lab': subject.is_lab,
+                        'is_lunch': False
+                    })
+                else:
+                    day_schedule.append(None)
         timetable_data['schedule'].append(day_schedule)
     
     return timetable_data
