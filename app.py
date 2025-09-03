@@ -21,6 +21,8 @@ def init_session():
         session['subjects'] = []
     if 'sections' not in session:
         session['sections'] = []
+    if 'saved_timetables' not in session:
+        session['saved_timetables'] = []
 
 @app.route('/')
 def index():
@@ -436,6 +438,74 @@ def swap_subjects():
     session.modified = True
     
     return jsonify({'success': True, 'message': 'Subjects swapped successfully'})
+
+@app.route('/save_timetable', methods=['POST'])
+def save_timetable():
+    """Save the current edited timetable permanently"""
+    init_session()
+    
+    if 'generated_sections' not in session or not session['generated_sections']:
+        return jsonify({'success': False, 'message': 'No timetable to save'})
+    
+    # Store the current timetable as saved
+    import time
+    timestamp = int(time.time())
+    
+    saved_timetable = {
+        'id': timestamp,
+        'name': f"Saved Timetable - {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}",
+        'sections': session['generated_sections'].copy(),
+        'created_at': timestamp
+    }
+    
+    session['saved_timetables'].append(saved_timetable)
+    session.modified = True
+    
+    return jsonify({'success': True, 'message': 'Timetable saved successfully!', 'saved_id': timestamp})
+
+@app.route('/load_saved_timetable/<int:saved_id>')
+def load_saved_timetable(saved_id):
+    """Load a previously saved timetable"""
+    init_session()
+    
+    saved_timetable = next((st for st in session['saved_timetables'] if st['id'] == saved_id), None)
+    if not saved_timetable:
+        flash('Saved timetable not found.', 'error')
+        return redirect(url_for('index'))
+    
+    # Load the saved timetable back into generated_sections
+    session['generated_sections'] = saved_timetable['sections'].copy()
+    session.modified = True
+    
+    flash(f'Loaded: {saved_timetable["name"]}', 'success')
+    return redirect(url_for('edit_timetable'))
+
+@app.route('/saved_timetables')
+def saved_timetables():
+    """Display all saved timetables"""
+    init_session()
+    
+    saved_timetables = session.get('saved_timetables', [])
+    # Sort by creation date, newest first
+    saved_timetables = sorted(saved_timetables, key=lambda x: x['created_at'], reverse=True)
+    
+    return render_template('saved_timetables.html', saved_timetables=saved_timetables)
+
+@app.route('/delete_saved_timetable/<int:saved_id>', methods=['POST'])
+def delete_saved_timetable(saved_id):
+    """Delete a saved timetable"""
+    init_session()
+    
+    session['saved_timetables'] = [st for st in session['saved_timetables'] if st['id'] != saved_id]
+    session.modified = True
+    
+    return jsonify({'success': True, 'message': 'Timetable deleted successfully'})
+
+@app.template_filter('timestamp_to_date')
+def timestamp_to_date(timestamp):
+    """Convert timestamp to readable date"""
+    import time
+    return time.strftime('%Y-%m-%d %H:%M', time.localtime(timestamp))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

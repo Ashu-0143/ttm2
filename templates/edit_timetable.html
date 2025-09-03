@@ -8,6 +8,12 @@
         <i class="fas fa-edit me-2"></i>Edit Mode - Resolve Conflicts
     </h2>
     <div>
+        <button id="saveTimetableBtn" class="btn btn-success me-2" onclick="saveTimetable()">
+            <i class="fas fa-save me-1"></i>Save Changes
+        </button>
+        <a href="{{ url_for('saved_timetables') }}" class="btn btn-info me-2">
+            <i class="fas fa-folder-open me-1"></i>Saved Timetables
+        </a>
         <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-secondary">
             <i class="fas fa-eye me-1"></i>View Only
         </a>
@@ -353,6 +359,42 @@ function showMessage(message, type) {
             alertDiv.remove();
         }
     }, 5000);
+}
+
+function saveTimetable() {
+    const saveBtn = document.getElementById('saveTimetableBtn');
+    const originalText = saveBtn.innerHTML;
+    
+    // Show saving state
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+    
+    fetch('/save_timetable', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('✅ ' + data.message, 'success');
+            saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Saved!';
+            setTimeout(() => {
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            }, 2000);
+        } else {
+            showMessage('❌ ' + data.message, 'error');
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        showMessage('❌ Error saving timetable: ' + error, 'error');
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
 }
 
 // Clean up drag over highlighting
