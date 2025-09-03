@@ -14,10 +14,10 @@
         <a href="{{ url_for('saved_timetables') }}" class="btn btn-info me-2">
             <i class="fas fa-folder-open me-1"></i>Saved Timetables
         </a>
-        <a href="#" onclick="checkUnsavedChanges('{{ url_for('generate_timetable_view') }}')" class="btn btn-secondary">
+        <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-secondary">
             <i class="fas fa-eye me-1"></i>View Only
         </a>
-        <a href="#" onclick="checkUnsavedChanges('{{ url_for('generate_timetable_view') }}')" class="btn btn-warning">
+        <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
             <i class="fas fa-sync-alt me-1"></i>Regenerate
         </a>
     </div>
@@ -193,8 +193,6 @@
 <script>
 let selectedSubject = null;
 let draggedElement = null;
-let hasUnsavedChanges = false;
-let lastSavedState = null;
 
 function selectSubject(element) {
     // Clear previous selections
@@ -292,7 +290,6 @@ function moveSubject(sectionName, fromDay, fromPeriod, toDay, toPeriod) {
     .then(data => {
         if (data.success) {
             showMessage(data.message, 'success');
-            markAsChanged();
             location.reload(); // Refresh to show updated timetable
         } else {
             showMessage(data.message, 'error');
@@ -332,7 +329,6 @@ function swapSubjects(subject1, subject2) {
     .then(data => {
         if (data.success) {
             showMessage(data.message, 'success');
-            markAsChanged();
             location.reload(); // Refresh to show updated timetable
         } else {
             showMessage(data.message, 'error');
@@ -373,7 +369,7 @@ function saveTimetable() {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
     
-    return fetch('/save_timetable', {
+    fetch('/save_timetable', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -383,69 +379,23 @@ function saveTimetable() {
     .then(data => {
         if (data.success) {
             showMessage('✅ ' + data.message, 'success');
-            hasUnsavedChanges = false; // Mark as saved
-            saveBtn.classList.remove('btn-warning');
-            saveBtn.classList.add('btn-success');
             saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Saved!';
             setTimeout(() => {
                 saveBtn.innerHTML = originalText;
                 saveBtn.disabled = false;
             }, 2000);
-            return Promise.resolve();
         } else {
             showMessage('❌ ' + data.message, 'error');
             saveBtn.innerHTML = originalText;
             saveBtn.disabled = false;
-            return Promise.reject(data.message);
         }
     })
     .catch(error => {
         showMessage('❌ Error saving timetable: ' + error, 'error');
         saveBtn.innerHTML = originalText;
         saveBtn.disabled = false;
-        return Promise.reject(error);
     });
 }
-
-function markAsChanged() {
-    hasUnsavedChanges = true;
-    const saveBtn = document.getElementById('saveTimetableBtn');
-    if (saveBtn && !saveBtn.classList.contains('btn-warning')) {
-        saveBtn.classList.remove('btn-success');
-        saveBtn.classList.add('btn-warning');
-        saveBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Save Changes';
-    }
-}
-
-function checkUnsavedChanges(redirectUrl) {
-    if (hasUnsavedChanges) {
-        if (confirm('⚠️ You have unsaved changes!\n\nDo you want to save your changes before leaving?\n\nClick OK to save first, or Cancel to discard changes.')) {
-            // User wants to save first
-            saveTimetable().then(() => {
-                setTimeout(() => {
-                    window.location.href = redirectUrl;
-                }, 1000);
-            });
-        } else {
-            // User wants to discard changes - ask for confirmation
-            if (confirm('Are you sure you want to discard your changes?')) {
-                window.location.href = redirectUrl;
-            }
-        }
-    } else {
-        // No unsaved changes, navigate normally
-        window.location.href = redirectUrl;
-    }
-}
-
-// Warn user before leaving page if there are unsaved changes
-window.addEventListener('beforeunload', function(event) {
-    if (hasUnsavedChanges) {
-        event.preventDefault();
-        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return 'You have unsaved changes. Are you sure you want to leave?';
-    }
-});
 
 // Clean up drag over highlighting
 document.addEventListener('dragleave', function(event) {
