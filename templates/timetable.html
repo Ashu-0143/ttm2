@@ -68,15 +68,20 @@
             <div class="mt-4">
                 <h6>Subject Summary:</h6>
                 <div class="row">
-                    {% set section_subjects = timetable.schedule|flatten|reject('none')|map(attribute='name')|unique|list %}
-                    {% for subject_name in section_subjects %}
-                        {% set subject_count = timetable.schedule|flatten|selectattr('name', 'equalto', subject_name)|list|length %}
-                        {% set is_lab = timetable.schedule|flatten|selectattr('name', 'equalto', subject_name)|selectattr('is_lab', 'true')|list|length > 0 %}
+                    {% set subject_data = {} %}
+                    {% for day in timetable.schedule %}
+                        {% for period in day %}
+                            {% if period %}
+                                {% set _ = subject_data.update({period.name: {'count': subject_data.get(period.name, {}).get('count', 0) + 1, 'is_lab': period.is_lab}}) %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% for subject_name, data in subject_data.items() %}
                         <div class="col-md-3 mb-2">
-                            <span class="badge {% if is_lab %}bg-warning text-dark{% else %}bg-primary{% endif %} me-1">
-                                {{ subject_count }}
+                            <span class="badge {% if data.is_lab %}bg-warning text-dark{% else %}bg-primary{% endif %} me-1">
+                                {{ data.count }}
                             </span>
-                            <i class="fas {% if is_lab %}fa-flask{% else %}fa-book{% endif %} me-1"></i>
+                            <i class="fas {% if data.is_lab %}fa-flask{% else %}fa-book{% endif %} me-1"></i>
                             {{ subject_name }}
                         </div>
                     {% endfor %}
