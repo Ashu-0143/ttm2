@@ -491,6 +491,62 @@ def saved_timetables():
     
     return render_template('saved_timetables.html', saved_timetables=saved_timetables)
 
+@app.route('/view_current_timetable')
+def view_current_timetable():
+    """View the current edited timetable without regenerating"""
+    init_session()
+    
+    if 'generated_sections' not in session or not session['generated_sections']:
+        flash('No timetables available. Please generate timetables first.', 'error')
+        return redirect(url_for('generate_timetable_view'))
+    
+    # Reconstruct sections from session data for conflict detection
+    teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
+    subjects_dict = {}
+    for subject_data in session['subjects']:
+        teacher = teachers.get(subject_data['teacher_name'])
+        if teacher:
+            subject = Subject(
+                subject_data['name'],
+                teacher,
+                subject_data['periods_per_week'],
+                subject_data['is_lab'],
+                subject_data['block_size']
+            )
+            subjects_dict[subject.name] = subject
+    
+    sections = []
+    for section_data in session['generated_sections']:
+        section_subjects = [subjects_dict[name] for name in section_data['subject_names'] if name in subjects_dict]
+        section = Section(section_data['name'], section_data['year'], section_subjects)
+        
+        # Reconstruct timetable from stored data
+        for day in range(6):
+            for period in range(7):
+                stored_subject = section_data['timetable'][day][period]
+                if stored_subject:
+                    subject = subjects_dict.get(stored_subject['name'])
+                    section.timetable[day][period] = subject
+        
+        sections.append(section)
+    
+    # Detect conflicts in current timetable
+    conflicts = detect_teacher_conflicts(sections)
+    conflict_summary = get_conflict_summary(conflicts)
+    suggestions = suggest_conflict_resolution(conflicts, sections) if conflicts else []
+    
+    # Format timetables for web display
+    timetables = []
+    for section in sections:
+        timetable_data = format_timetable_for_web(section)
+        timetables.append(timetable_data)
+    
+    return render_template('timetable.html', 
+                         timetables=timetables,
+                         conflicts=conflict_summary,
+                         suggestions=suggestions,
+                         has_conflicts=len(conflicts) > 0)
+
 @app.route('/delete_saved_timetable/<int:saved_id>', methods=['POST'])
 def delete_saved_timetable(saved_id):
     """Delete a saved timetable"""
