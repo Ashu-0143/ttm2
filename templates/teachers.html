@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Teachers - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-chalkboard-teacher me-2"></i>Manage Teachers
+    </h2>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Add New Teacher</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_teacher') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Teacher Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="max_load" class="form-label">Maximum Load (periods/week)</label>
+                        <input type="number" class="form-control" id="max_load" name="max_load" min="1" max="42" value="28" required>
+                        <div class="form-text">Maximum number of periods this teacher can teach per week</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Teacher
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Current Teachers</h5>
+            </div>
+            <div class="card-body">
+                {% if teachers %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Max Load</th>
+                                    <th>Current Load</th>
+                                    <th>Available</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for teacher in teachers %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-user me-2"></i>{{ teacher.name }}
+                                    </td>
+                                    <td>{{ teacher.max_load }}</td>
+                                    <td>
+                                        <span class="badge {% if teacher.current_load >= teacher.max_load %}bg-danger{% elif teacher.current_load >= teacher.max_load * 0.8 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ teacher.current_load }}
+                                        </span>
+                                    </td>
+                                    <td>{{ teacher.max_load - teacher.current_load }}</td>
+                                    <td>
+                                        <a href="{{ url_for('delete_teacher', teacher_name=teacher.name) }}" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Are you sure you want to delete {{ teacher.name }}?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Teachers Added</h5>
+                        <p class="text-muted">Add your first teacher using the form on the left.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if teachers %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Teacher Load Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for teacher in teachers %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h6>{{ teacher.name }}</h6>
+                                <div class="progress mb-2">
+                                    {% set load_percentage = (teacher.current_load / teacher.max_load * 100) %}
+                                    <div class="progress-bar {% if load_percentage >= 100 %}bg-danger{% elif load_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                                         style="width: {{ load_percentage }}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    {{ teacher.current_load }} / {{ teacher.max_load }} periods
+                                    ({{ "%.1f"|format(load_percentage) }}%)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

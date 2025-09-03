@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Generated Timetables - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-calendar-alt me-2"></i>Generated Timetables
+    </h2>
+    <div>
+        <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
+            <i class="fas fa-sync-alt me-1"></i>Regenerate
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Print
+        </button>
+    </div>
+</div>
+
+{% if timetables %}
+    {% for timetable in timetables %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="fas fa-users me-2"></i>{{ timetable.section_name }} ({{ timetable.section_year }})
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered timetable-grid">
+                    <thead>
+                        <tr class="table-dark">
+                            <th class="text-center">Day</th>
+                            {% for period in timetable.periods %}
+                            <th class="text-center">{{ period }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day_index in range(6) %}
+                        <tr>
+                            <td class="fw-bold text-center table-secondary">{{ timetable.days[day_index] }}</td>
+                            {% for period_index in range(7) %}
+                            <td class="timetable-cell text-center">
+                                {% set subject = timetable.schedule[day_index][period_index] %}
+                                {% if subject %}
+                                    <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %}">
+                                        <div class="fw-bold">{{ subject.name }}</div>
+                                        <small>{{ subject.teacher }}</small>
+                                        {% if subject.is_lab %}
+                                            <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="empty-cell p-2">
+                                        <small class="text-muted">Free</small>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Subject Summary -->
+            <div class="mt-4">
+                <h6>Subject Summary:</h6>
+                <div class="row">
+                    {% set section_subjects = timetable.schedule|flatten|reject('none')|map(attribute='name')|unique|list %}
+                    {% for subject_name in section_subjects %}
+                        {% set subject_count = timetable.schedule|flatten|selectattr('name', 'equalto', subject_name)|list|length %}
+                        {% set is_lab = timetable.schedule|flatten|selectattr('name', 'equalto', subject_name)|selectattr('is_lab', 'true')|list|length > 0 %}
+                        <div class="col-md-3 mb-2">
+                            <span class="badge {% if is_lab %}bg-warning text-dark{% else %}bg-primary{% endif %} me-1">
+                                {{ subject_count }}
+                            </span>
+                            <i class="fas {% if is_lab %}fa-flask{% else %}fa-book{% endif %} me-1"></i>
+                            {{ subject_name }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Timetables Generated</h5>
+            <p class="text-muted">Generate timetables for your sections to see them here.</p>
+            <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
+                <i class="fas fa-magic me-1"></i>Generate Timetables
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+@media print {
+    .btn, .navbar, .alert {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 2rem !important;
+    }
+    
+    .timetable-grid {
+        font-size: 12px;
+    }
+    
+    .subject-cell {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+    }
+    
+    .lab-cell {
+        background-color: #fff3cd !important;
+        color: #000 !important;
+    }
+}
+</style>
+{% endblock %}

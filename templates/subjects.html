@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Subjects - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-book me-2"></i>Manage Subjects
+    </h2>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Add New Subject</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_subject') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Subject Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="teacher_name" class="form-label">Teacher</label>
+                        <select class="form-select" id="teacher_name" name="teacher_name" required>
+                            <option value="">Select a teacher</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.name }}">{{ teacher.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="periods_per_week" class="form-label">Periods per Week</label>
+                        <input type="number" class="form-control" id="periods_per_week" name="periods_per_week" min="1" max="10" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_lab" name="is_lab" onchange="toggleBlockSize()">
+                            <label class="form-check-label" for="is_lab">
+                                Lab Subject
+                            </label>
+                        </div>
+                        <div class="form-text">Lab subjects require consecutive periods</div>
+                    </div>
+                    <div class="mb-3" id="block_size_group" style="display: none;">
+                        <label for="block_size" class="form-label">Block Size (consecutive periods)</label>
+                        <input type="number" class="form-control" id="block_size" name="block_size" min="2" max="7">
+                        <div class="form-text">Number of consecutive periods for this lab</div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Add Subject
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Current Subjects</h5>
+            </div>
+            <div class="card-body">
+                {% if subjects %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Teacher</th>
+                                    <th>Periods/Week</th>
+                                    <th>Type</th>
+                                    <th>Block Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subjects %}
+                                <tr>
+                                    <td>
+                                        <i class="fas {% if subject.is_lab %}fa-flask{% else %}fa-book{% endif %} me-2"></i>
+                                        {{ subject.name }}
+                                    </td>
+                                    <td>{{ subject.teacher.name }}</td>
+                                    <td>{{ subject.periods_per_week }}</td>
+                                    <td>
+                                        {% if subject.is_lab %}
+                                            <span class="badge bg-warning text-dark">Lab</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">Theory</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if subject.is_lab %}
+                                            {{ subject.block_size }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('delete_subject', subject_name=subject.name) }}" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Are you sure you want to delete {{ subject.name }}?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Subjects Added</h5>
+                        <p class="text-muted">Add your first subject using the form on the left.</p>
+                        {% if not teachers %}
+                            <p class="text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                You need to add teachers first before creating subjects.
+                            </p>
+                            <a href="{{ url_for('teachers') }}" class="btn btn-primary">
+                                <i class="fas fa-chalkboard-teacher me-1"></i>Add Teachers
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBlockSize() {
+    const isLabCheckbox = document.getElementById('is_lab');
+    const blockSizeGroup = document.getElementById('block_size_group');
+    const blockSizeInput = document.getElementById('block_size');
+    
+    if (isLabCheckbox.checked) {
+        blockSizeGroup.style.display = 'block';
+        blockSizeInput.required = true;
+        if (!blockSizeInput.value) {
+            blockSizeInput.value = 2;
+        }
+    } else {
+        blockSizeGroup.style.display = 'none';
+        blockSizeInput.required = false;
+        blockSizeInput.value = '';
+    }
+}
+</script>
+{% endblock %}
