@@ -1,9 +1,10 @@
 import os
 import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Teacher, Subject, Section
 from generator import generate_timetable
 from exporter import format_timetable_for_web
+from conflicts import detect_teacher_conflicts, get_conflict_summary, suggest_conflict_resolution, apply_conflict_resolution
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -263,17 +264,178 @@ def generate_timetable_view():
         # Generate timetables
         generated_sections = generate_timetable(sections)
         
+        # Detect conflicts
+        conflicts = detect_teacher_conflicts(generated_sections)
+        conflict_summary = get_conflict_summary(conflicts)
+        suggestions = suggest_conflict_resolution(conflicts, generated_sections) if conflicts else []
+        
+        # Store generated sections in session for editing
+        session['generated_sections'] = []
+        for section in generated_sections:
+            # Convert section to serializable format
+            section_data = {
+                'name': section.name,
+                'year': section.year,
+                'subject_names': [s.name for s in section.subjects],
+                'timetable': []
+            }
+            
+            # Store timetable with subject names (not objects)
+            for day in range(6):
+                day_schedule = []
+                for period in range(7):
+                    subject = section.timetable[day][period]
+                    if subject:
+                        day_schedule.append({
+                            'name': subject.name,
+                            'teacher': subject.teacher.name,
+                            'is_lab': subject.is_lab
+                        })
+                    else:
+                        day_schedule.append(None)
+                section_data['timetable'].append(day_schedule)
+            
+            session['generated_sections'].append(section_data)
+        
+        session.modified = True
+        
         # Format timetables for web display
         timetables = []
         for section in generated_sections:
             timetable_data = format_timetable_for_web(section)
             timetables.append(timetable_data)
         
-        return render_template('timetable.html', timetables=timetables)
+        # Show conflict warnings if any
+        if conflicts:
+            flash(f"⚠️ {len(conflicts)} teacher scheduling conflicts detected! Check the conflicts tab for details.", 'warning')
+        
+        return render_template('timetable.html', 
+                             timetables=timetables,
+                             conflicts=conflict_summary,
+                             suggestions=suggestions,
+                             has_conflicts=len(conflicts) > 0)
     
     except Exception as e:
         flash(f'Error generating timetable: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+@app.route('/edit_timetable')
+def edit_timetable():
+    """Display timetables in edit mode with conflict information"""
+    init_session()
+    
+    if 'generated_sections' not in session or not session['generated_sections']:
+        flash('No timetables generated yet. Please generate timetables first.', 'error')
+        return redirect(url_for('generate_timetable_view'))
+    
+    # Reconstruct sections from session data for conflict detection
+    teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
+    subjects_dict = {}
+    for subject_data in session['subjects']:
+        teacher = teachers.get(subject_data['teacher_name'])
+        if teacher:
+            subject = Subject(
+                subject_data['name'],
+                teacher,
+                subject_data['periods_per_week'],
+                subject_data['is_lab'],
+                subject_data['block_size']
+            )
+            subjects_dict[subject.name] = subject
+    
+    sections = []
+    for section_data in session['generated_sections']:
+        section_subjects = [subjects_dict[name] for name in section_data['subject_names'] if name in subjects_dict]
+        section = Section(section_data['name'], section_data['year'], section_subjects)
+        
+        # Reconstruct timetable from stored data
+        for day in range(6):
+            for period in range(7):
+                stored_subject = section_data['timetable'][day][period]
+                if stored_subject:
+                    subject = subjects_dict.get(stored_subject['name'])
+                    section.timetable[day][period] = subject
+    
+        sections.append(section)
+    
+    # Detect current conflicts
+    conflicts = detect_teacher_conflicts(sections)
+    conflict_summary = get_conflict_summary(conflicts)
+    suggestions = suggest_conflict_resolution(conflicts, sections)
+    
+    # Format for display
+    timetables = []
+    for section in sections:
+        timetable_data = format_timetable_for_web(section)
+        timetables.append(timetable_data)
+    
+    return render_template('edit_timetable.html',
+                         timetables=timetables,
+                         conflicts=conflict_summary,
+                         suggestions=suggestions,
+                         has_conflicts=len(conflicts) > 0)
+
+@app.route('/move_subject', methods=['POST'])
+def move_subject():
+    """Move a subject from one time slot to another"""
+    init_session()
+    
+    data = request.get_json()
+    section_name = data.get('section_name')
+    from_day = data.get('from_day')
+    from_period = data.get('from_period')
+    to_day = data.get('to_day')
+    to_period = data.get('to_period')
+    
+    # Find the section in stored data
+    section_data = next((s for s in session['generated_sections'] if s['name'] == section_name), None)
+    if not section_data:
+        return jsonify({'success': False, 'message': 'Section not found'})
+    
+    # Get subject from source position
+    source_subject = section_data['timetable'][from_day][from_period]
+    if not source_subject:
+        return jsonify({'success': False, 'message': 'No subject at source position'})
+    
+    # Check if destination is empty
+    dest_subject = section_data['timetable'][to_day][to_period]
+    if dest_subject:
+        return jsonify({'success': False, 'message': 'Destination slot is occupied'})
+    
+    # Move the subject
+    section_data['timetable'][to_day][to_period] = source_subject
+    section_data['timetable'][from_day][from_period] = None
+    session.modified = True
+    
+    return jsonify({'success': True, 'message': f'Moved {source_subject["name"]} successfully'})
+
+@app.route('/swap_subjects', methods=['POST'])
+def swap_subjects():
+    """Swap two subjects between time slots"""
+    init_session()
+    
+    data = request.get_json()
+    section_name = data.get('section_name')
+    slot1_day = data.get('slot1_day')
+    slot1_period = data.get('slot1_period')
+    slot2_day = data.get('slot2_day')
+    slot2_period = data.get('slot2_period')
+    
+    # Find the section in stored data
+    section_data = next((s for s in session['generated_sections'] if s['name'] == section_name), None)
+    if not section_data:
+        return jsonify({'success': False, 'message': 'Section not found'})
+    
+    # Get subjects from both positions
+    subject1 = section_data['timetable'][slot1_day][slot1_period]
+    subject2 = section_data['timetable'][slot2_day][slot2_period]
+    
+    # Swap the subjects
+    section_data['timetable'][slot1_day][slot1_period] = subject2
+    section_data['timetable'][slot2_day][slot2_period] = subject1
+    session.modified = True
+    
+    return jsonify({'success': True, 'message': 'Subjects swapped successfully'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

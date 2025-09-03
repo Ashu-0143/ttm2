@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Timetable - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-edit me-2"></i>Edit Mode - Resolve Conflicts
+    </h2>
+    <div>
+        <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-secondary">
+            <i class="fas fa-eye me-1"></i>View Only
+        </a>
+        <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
+            <i class="fas fa-sync-alt me-1"></i>Regenerate
+        </a>
+    </div>
+</div>
+
+{% if has_conflicts %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Scheduling Conflicts Detected ({{ conflicts|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="conflictAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#conflictDetails">
+                                View Conflict Details
+                            </button>
+                        </h2>
+                        <div id="conflictDetails" class="accordion-collapse collapse show" data-bs-parent="#conflictAccordion">
+                            <div class="accordion-body">
+                                {% for conflict in conflicts %}
+                                <div class="alert alert-warning mb-2">
+                                    <strong>{{ conflict.teacher }}</strong> is scheduled in multiple sections at 
+                                    <strong>{{ conflict.time }}</strong>:
+                                    <ul class="mb-0 mt-2">
+                                        {% for i in range(conflict.sections|length) %}
+                                        <li>{{ conflict.sections[i] }} - {{ conflict.subjects[i] }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success mb-4">
+    <i class="fas fa-check-circle me-2"></i>
+    No scheduling conflicts detected! Your timetables are properly organized.
+</div>
+{% endif %}
+
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Edit Instructions:</strong> Click and drag subjects to move them between time slots. 
+    Click on two subjects to swap their positions. Changes are saved automatically.
+</div>
+
+{% if timetables %}
+    {% for timetable in timetables %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="fas fa-users me-2"></i>{{ timetable.section_name }} ({{ timetable.section_year }})
+                <span class="badge bg-secondary ms-2">Edit Mode</span>
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered timetable-grid" id="timetable-{{ loop.index0 }}">
+                    <thead>
+                        <tr class="table-dark">
+                            <th class="text-center">Day</th>
+                            {% for period in timetable.periods %}
+                            <th class="text-center">{{ period }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day_index in range(6) %}
+                        <tr>
+                            <td class="fw-bold text-center table-secondary">{{ timetable.days[day_index] }}</td>
+                            {% for period_index in range(7) %}
+                            <td class="timetable-cell text-center p-1" 
+                                data-section="{{ timetable.section_name }}"
+                                data-day="{{ day_index }}"
+                                data-period="{{ period_index }}"
+                                ondrop="handleDrop(event)" 
+                                ondragover="handleDragOver(event)">
+                                {% set subject = timetable.schedule[day_index][period_index] %}
+                                {% if subject %}
+                                    <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %} editable-subject"
+                                         draggable="true"
+                                         ondragstart="handleDragStart(event)"
+                                         data-subject-name="{{ subject.name }}"
+                                         data-teacher="{{ subject.teacher }}"
+                                         data-is-lab="{{ subject.is_lab }}"
+                                         onclick="selectSubject(this)">
+                                        <div class="fw-bold">{{ subject.name }}</div>
+                                        <small>{{ subject.teacher }}</small>
+                                        {% if subject.is_lab %}
+                                            <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                        {% endif %}
+                                        <div class="edit-indicator">
+                                            <i class="fas fa-arrows-alt"></i>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="empty-cell p-2 drop-zone">
+                                        <small class="text-muted">Free</small>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<style>
+.editable-subject {
+    position: relative;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.editable-subject:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.editable-subject.selected {
+    border: 3px solid var(--bs-warning) !important;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.edit-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.drop-zone {
+    border: 2px dashed transparent;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    border-color: var(--bs-success);
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.timetable-cell {
+    min-height: 80px;
+    vertical-align: middle;
+}
+
+.conflict-highlight {
+    border: 2px solid var(--bs-danger) !important;
+    background-color: rgba(220, 53, 69, 0.1);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedSubject = null;
+let draggedElement = null;
+
+function selectSubject(element) {
+    // Clear previous selections
+    document.querySelectorAll('.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    if (selectedSubject === element) {
+        // Deselect if clicking the same element
+        selectedSubject = null;
+        return;
+    }
+    
+    if (selectedSubject && selectedSubject !== element) {
+        // Swap subjects
+        swapSubjects(selectedSubject, element);
+        selectedSubject = null;
+    } else {
+        // Select subject
+        selectedSubject = element;
+        element.classList.add('selected');
+    }
+}
+
+function handleDragStart(event) {
+    draggedElement = event.target.closest('.editable-subject');
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    
+    // Highlight drop zone
+    const cell = event.currentTarget;
+    const dropZone = cell.querySelector('.drop-zone');
+    if (dropZone) {
+        dropZone.classList.add('drag-over');
+    }
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    
+    const targetCell = event.currentTarget;
+    const dropZone = targetCell.querySelector('.drop-zone');
+    if (dropZone) {
+        dropZone.classList.remove('drag-over');
+    }
+    
+    if (!draggedElement) return;
+    
+    // Get source position
+    const sourceCell = draggedElement.closest('.timetable-cell');
+    const sourceSection = sourceCell.dataset.section;
+    const sourceDay = parseInt(sourceCell.dataset.day);
+    const sourcePeriod = parseInt(sourceCell.dataset.period);
+    
+    // Get target position
+    const targetSection = targetCell.dataset.section;
+    const targetDay = parseInt(targetCell.dataset.day);
+    const targetPeriod = parseInt(targetCell.dataset.period);
+    
+    // Check if target is empty
+    const targetSubject = targetCell.querySelector('.editable-subject');
+    if (targetSubject) {
+        showMessage('Target slot is occupied. Use click-to-swap instead.', 'warning');
+        return;
+    }
+    
+    if (sourceSection !== targetSection) {
+        showMessage('Cannot move subjects between different sections.', 'error');
+        return;
+    }
+    
+    // Move subject
+    moveSubject(sourceSection, sourceDay, sourcePeriod, targetDay, targetPeriod);
+}
+
+function moveSubject(sectionName, fromDay, fromPeriod, toDay, toPeriod) {
+    fetch('/move_subject', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            section_name: sectionName,
+            from_day: fromDay,
+            from_period: fromPeriod,
+            to_day: toDay,
+            to_period: toPeriod
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload(); // Refresh to show updated timetable
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage('Error moving subject: ' + error, 'error');
+    });
+}
+
+function swapSubjects(subject1, subject2) {
+    const cell1 = subject1.closest('.timetable-cell');
+    const cell2 = subject2.closest('.timetable-cell');
+    
+    const section1 = cell1.dataset.section;
+    const section2 = cell2.dataset.section;
+    
+    if (section1 !== section2) {
+        showMessage('Cannot swap subjects between different sections.', 'error');
+        return;
+    }
+    
+    fetch('/swap_subjects', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            section_name: section1,
+            slot1_day: parseInt(cell1.dataset.day),
+            slot1_period: parseInt(cell1.dataset.period),
+            slot2_day: parseInt(cell2.dataset.day),
+            slot2_period: parseInt(cell2.dataset.period)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload(); // Refresh to show updated timetable
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage('Error swapping subjects: ' + error, 'error');
+    });
+}
+
+function showMessage(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-danger';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Clean up drag over highlighting
+document.addEventListener('dragleave', function(event) {
+    if (event.target.classList.contains('drop-zone')) {
+        event.target.classList.remove('drag-over');
+    }
+});
+</script>
+{% endblock %}

@@ -8,6 +8,9 @@
         <i class="fas fa-calendar-alt me-2"></i>Generated Timetables
     </h2>
     <div>
+        <a href="{{ url_for('edit_timetable') }}" class="btn btn-primary me-2">
+            <i class="fas fa-edit me-1"></i>Edit Mode
+        </a>
         <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
             <i class="fas fa-sync-alt me-1"></i>Regenerate
         </a>
@@ -16,6 +19,59 @@
         </button>
     </div>
 </div>
+
+{% if has_conflicts %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ⚠️ Teacher Scheduling Conflicts Detected ({{ conflicts|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    <strong>Some teachers are scheduled in multiple sections at the same time.</strong>
+                    Use Edit Mode to resolve these conflicts manually.
+                </p>
+                
+                <div class="accordion" id="conflictAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#conflictDetails">
+                                View Conflict Details
+                            </button>
+                        </h2>
+                        <div id="conflictDetails" class="accordion-collapse collapse" data-bs-parent="#conflictAccordion">
+                            <div class="accordion-body">
+                                {% for conflict in conflicts %}
+                                <div class="alert alert-warning mb-2">
+                                    <i class="fas fa-user-times me-2"></i>
+                                    <strong>{{ conflict.teacher }}</strong> is scheduled at 
+                                    <strong>{{ conflict.time }}</strong> in:
+                                    <ul class="mb-0 mt-2">
+                                        {% for i in range(conflict.sections|length) %}
+                                        <li><strong>{{ conflict.sections[i] }}</strong> - {{ conflict.subjects[i] }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endfor %}
+                                
+                                <div class="mt-3">
+                                    <a href="{{ url_for('edit_timetable') }}" class="btn btn-warning">
+                                        <i class="fas fa-edit me-1"></i>Resolve Conflicts in Edit Mode
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if timetables %}
     {% for timetable in timetables %}
