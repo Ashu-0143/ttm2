@@ -10,19 +10,22 @@ def print_section_timetable(section):
         print(days[d], " | ", " | ".join(row))
 
 def format_timetable_for_web(section):
-    """Format timetable data for web display with lunch periods"""
+    """Format timetable data for web display with lunch periods inserted between teaching periods"""
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    lunch_period = section.get_lunch_period()
+    lunch_position = section.get_lunch_period_position()
     
-    # Create period labels with lunch
+    # Create period labels with lunch inserted at the right position
     periods = []
-    for i in range(7):
-        if i == lunch_period:
+    display_schedule = []
+    
+    # Generate periods list with lunch inserted
+    for i in range(9):  # 8 teaching periods + 1 lunch = 9 slots
+        if i == lunch_position:
             periods.append("LUNCH")
-        elif i < lunch_period:
+        elif i < lunch_position:
             periods.append(f"Period {i + 1}")
         else:
-            periods.append(f"Period {i}")
+            periods.append(f"Period {i}")  # i already accounts for lunch shift
     
     timetable_data = {
         'section_name': section.name,
@@ -30,14 +33,17 @@ def format_timetable_for_web(section):
         'days': days,
         'periods': periods,
         'schedule': [],
-        'lunch_period': lunch_period
+        'lunch_position': lunch_position
     }
     
+    # Create schedule with lunch inserted at correct position
     for d in range(6):
         day_schedule = []
-        for p in range(7):
-            if p == lunch_period:
-                # Add lunch break
+        teaching_period_index = 0
+        
+        for display_slot in range(9):  # 9 display slots total
+            if display_slot == lunch_position:
+                # Insert lunch break
                 day_schedule.append({
                     'name': 'LUNCH',
                     'teacher': '',
@@ -45,7 +51,8 @@ def format_timetable_for_web(section):
                     'is_lunch': True
                 })
             else:
-                subject = section.timetable[d][p]
+                # Add teaching period
+                subject = section.timetable[d][teaching_period_index]
                 if subject:
                     day_schedule.append({
                         'name': subject.name,
@@ -55,6 +62,8 @@ def format_timetable_for_web(section):
                     })
                 else:
                     day_schedule.append(None)
+                teaching_period_index += 1
+        
         timetable_data['schedule'].append(day_schedule)
     
     return timetable_data

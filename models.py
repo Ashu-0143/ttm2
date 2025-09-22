@@ -22,22 +22,22 @@ class Section:
         self.name = name
         self.year = year
         self.subjects = subjects
-        self.timetable = [[None for _ in range(7)] for _ in range(6)]
+        self.timetable = [[None for _ in range(8)] for _ in range(6)]  # 8 teaching periods
     
-    def get_lunch_period(self):
-        """Get lunch period index based on year level"""
+    def get_lunch_period_position(self):
+        """Get lunch break position based on year level (for display purposes)"""
         year_str = str(self.year).lower()
         if '1st' in year_str or 'first' in year_str or '1' in year_str:
-            return 3  # Lunch after 3rd period (index 3 = 4th slot)
+            return 3  # Lunch after 3rd period (between period 3 and 4)
         else:  # 2nd year and above
-            return 4  # Lunch after 4th period (index 4 = 5th slot)
+            return 4  # Lunch after 4th period (between period 4 and 5)
     
-    def get_available_periods_before_lunch(self):
-        """Get list of period indices before lunch"""
-        lunch_period = self.get_lunch_period()
-        return list(range(lunch_period))
+    def get_morning_periods(self):
+        """Get list of morning period indices (before lunch)"""
+        lunch_pos = self.get_lunch_period_position()
+        return list(range(lunch_pos))
     
-    def get_available_periods_after_lunch(self):
-        """Get list of period indices after lunch"""
-        lunch_period = self.get_lunch_period()
-        return list(range(lunch_period + 1, 7))
+    def get_evening_periods(self):
+        """Get list of evening period indices (after lunch)"""
+        lunch_pos = self.get_lunch_period_position()
+        return list(range(lunch_pos, 8))  # 8 total teaching periods

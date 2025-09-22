@@ -98,7 +98,7 @@
                         {% for day_index in range(6) %}
                         <tr>
                             <td class="fw-bold text-center table-secondary">{{ timetable.days[day_index] }}</td>
-                            {% for period_index in range(7) %}
+                            {% for period_index in range(9) %}
                             <td class="timetable-cell text-center">
                                 {% set subject = timetable.schedule[day_index][period_index] %}
                                 {% if subject %}
