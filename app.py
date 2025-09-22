@@ -71,11 +71,13 @@ def add_teacher():
 @app.route('/delete_teacher/<teacher_name>')
 def delete_teacher(teacher_name):
     init_session()
-    # Check if teacher is being used in any subject
-    for subject in session['subjects']:
-        if subject['teacher_name'] == teacher_name:
-            flash(f'Cannot delete teacher {teacher_name} as they are assigned to subject {subject["name"]}', 'error')
-            return redirect(url_for('teachers'))
+    # Check if teacher is being used in any section
+    for section_data in session['sections']:
+        if 'subject_assignments' in section_data:
+            for assignment in section_data['subject_assignments']:
+                if assignment.get('teacher_name') == teacher_name:
+                    flash(f'Cannot delete teacher {teacher_name} as they are assigned to a subject in section {section_data["name"]}', 'error')
+                    return redirect(url_for('teachers'))
     
     session['teachers'] = [t for t in session['teachers'] if t['name'] != teacher_name]
     session.modified = True
@@ -88,33 +90,25 @@ def subjects():
     teachers = [Teacher(t['name'], t['max_load']) for t in session['teachers']]
     subjects = []
     for subject_data in session['subjects']:
-        teacher = next((t for t in teachers if t.name == subject_data['teacher_name']), None)
-        if teacher:
-            subject = Subject(
-                subject_data['name'],
-                teacher,
-                subject_data['periods_per_week'],
-                subject_data['is_lab'],
-                subject_data['block_size']
-            )
-            subjects.append(subject)
+        subject = Subject(
+            subject_data['name'],
+            subject_data['periods_per_week'],
+            subject_data['is_lab'],
+            subject_data['block_size']
+        )
+        subjects.append(subject)
     return render_template('subjects.html', subjects=subjects, teachers=teachers)
 
 @app.route('/add_subject', methods=['POST'])
 def add_subject():
     init_session()
     name = request.form.get('name', '').strip()
-    teacher_name = request.form.get('teacher_name')
     periods_per_week = request.form.get('periods_per_week', type=int)
     is_lab = 'is_lab' in request.form
     block_size = request.form.get('block_size', type=int) if is_lab else 1
     
     if not name:
         flash('Subject name is required', 'error')
-        return redirect(url_for('subjects'))
-    
-    if not teacher_name:
-        flash('Teacher must be selected', 'error')
         return redirect(url_for('subjects'))
     
     if not periods_per_week or periods_per_week <= 0:
@@ -125,12 +119,6 @@ def add_subject():
         flash('Block size must be a positive number for lab subjects', 'error')
         return redirect(url_for('subjects'))
     
-    # Check if teacher exists
-    teacher_exists = any(t['name'] == teacher_name for t in session['teachers'])
-    if not teacher_exists:
-        flash('Selected teacher does not exist', 'error')
-        return redirect(url_for('subjects'))
-    
     # Check if subject already exists
     for subject in session['subjects']:
         if subject['name'].lower() == name.lower():
@@ -139,7 +127,6 @@ def add_subject():
     
     session['subjects'].append({
         'name': name,
-        'teacher_name': teacher_name,
         'periods_per_week': periods_per_week,
         'is_lab': is_lab,
         'block_size': block_size or 1
@@ -152,9 +139,14 @@ def add_subject():
 def delete_subject(subject_name):
     init_session()
     # Check if subject is being used in any section
-    for section in session['sections']:
-        if subject_name in section['subject_names']:
-            flash(f'Cannot delete subject {subject_name} as it is assigned to section {section["name"]}', 'error')
+    for section_data in session['sections']:
+        if 'subject_assignments' in section_data:
+            for assignment in section_data['subject_assignments']:
+                if assignment.get('subject_name') == subject_name:
+                    flash(f'Cannot delete subject {subject_name} as it is assigned to section {section_data["name"]}', 'error')
+                    return redirect(url_for('subjects'))
+        elif 'subject_names' in section_data and subject_name in section_data['subject_names']:
+            flash(f'Cannot delete subject {subject_name} as it is assigned to section {section_data["name"]}', 'error')
             return redirect(url_for('subjects'))
     
     session['subjects'] = [s for s in session['subjects'] if s['name'] != subject_name]
@@ -168,16 +160,13 @@ def sections():
     teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
     subjects = []
     for subject_data in session['subjects']:
-        teacher = teachers.get(subject_data['teacher_name'])
-        if teacher:
-            subject = Subject(
-                subject_data['name'],
-                teacher,
-                subject_data['periods_per_week'],
-                subject_data['is_lab'],
-                subject_data['block_size']
-            )
-            subjects.append(subject)
+        subject = Subject(
+            subject_data['name'],
+            subject_data['periods_per_week'],
+            subject_data['is_lab'],
+            subject_data['block_size']
+        )
+        subjects.append(subject)
     
     sections = []
     for section_data in session['sections']:
@@ -246,16 +235,13 @@ def generate_timetable_view():
         teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
         subjects = []
         for subject_data in session['subjects']:
-            teacher = teachers.get(subject_data['teacher_name'])
-            if teacher:
-                subject = Subject(
-                    subject_data['name'],
-                    teacher,
-                    subject_data['periods_per_week'],
-                    subject_data['is_lab'],
-                    subject_data['block_size']
-                )
-                subjects.append(subject)
+            subject = Subject(
+                subject_data['name'],
+                subject_data['periods_per_week'],
+                subject_data['is_lab'],
+                subject_data['block_size']
+            )
+            subjects.append(subject)
         
         sections = []
         for section_data in session['sections']:
@@ -334,16 +320,13 @@ def edit_timetable():
     teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
     subjects_dict = {}
     for subject_data in session['subjects']:
-        teacher = teachers.get(subject_data['teacher_name'])
-        if teacher:
-            subject = Subject(
-                subject_data['name'],
-                teacher,
-                subject_data['periods_per_week'],
-                subject_data['is_lab'],
-                subject_data['block_size']
-            )
-            subjects_dict[subject.name] = subject
+        subject = Subject(
+            subject_data['name'],
+            subject_data['periods_per_week'],
+            subject_data['is_lab'],
+            subject_data['block_size']
+        )
+        subjects_dict[subject.name] = subject
     
     sections = []
     for section_data in session['generated_sections']:
@@ -504,16 +487,13 @@ def view_current_timetable():
     teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
     subjects_dict = {}
     for subject_data in session['subjects']:
-        teacher = teachers.get(subject_data['teacher_name'])
-        if teacher:
-            subject = Subject(
-                subject_data['name'],
-                teacher,
-                subject_data['periods_per_week'],
-                subject_data['is_lab'],
-                subject_data['block_size']
-            )
-            subjects_dict[subject.name] = subject
+        subject = Subject(
+            subject_data['name'],
+            subject_data['periods_per_week'],
+            subject_data['is_lab'],
+            subject_data['block_size']
+        )
+        subjects_dict[subject.name] = subject
     
     sections = []
     for section_data in session['generated_sections']:

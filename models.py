@@ -9,19 +9,18 @@ class Teacher:
 
 
 class Subject:
-    def __init__(self, name, teacher, periods_per_week, is_lab=False, block_size=1):
+    def __init__(self, name, periods_per_week, is_lab=False, block_size=1):
         self.name = name
-        self.teacher = teacher
         self.periods_per_week = periods_per_week
         self.is_lab = is_lab
         self.block_size = block_size
 
 
 class Section:
-    def __init__(self, name, year, subjects):
+    def __init__(self, name, year, subject_assignments):
         self.name = name
         self.year = year
-        self.subjects = subjects
+        self.subject_assignments = subject_assignments  # List of {subject, teacher} pairs
         self.timetable = [[None for _ in range(7)] for _ in range(6)]  # 7 teaching periods
     
     def get_lunch_period_position(self):

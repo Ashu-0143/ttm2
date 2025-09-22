@@ -21,14 +21,9 @@
                         <label for="name" class="form-label">Subject Name</label>
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="teacher_name" class="form-label">Teacher</label>
-                        <select class="form-select" id="teacher_name" name="teacher_name" required>
-                            <option value="">Select a teacher</option>
-                            {% for teacher in teachers %}
-                            <option value="{{ teacher.name }}">{{ teacher.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Note:</strong> Teachers will be assigned to subjects when creating sections.
                     </div>
                     <div class="mb-3">
                         <label for="periods_per_week" class="form-label">Periods per Week</label>
@@ -68,7 +63,6 @@
                             <thead>
                                 <tr>
                                     <th>Subject</th>
-                                    <th>Teacher</th>
                                     <th>Periods/Week</th>
                                     <th>Type</th>
                                     <th>Block Size</th>
@@ -82,7 +76,6 @@
                                         <i class="fas {% if subject.is_lab %}fa-flask{% else %}fa-book{% endif %} me-2"></i>
                                         {{ subject.name }}
                                     </td>
-                                    <td>{{ subject.teacher.name }}</td>
                                     <td>{{ subject.periods_per_week }}</td>
                                     <td>
                                         {% if subject.is_lab %}
@@ -115,15 +108,6 @@
                         <i class="fas fa-book fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No Subjects Added</h5>
                         <p class="text-muted">Add your first subject using the form on the left.</p>
-                        {% if not teachers %}
-                            <p class="text-warning">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                You need to add teachers first before creating subjects.
-                            </p>
-                            <a href="{{ url_for('teachers') }}" class="btn btn-primary">
-                                <i class="fas fa-chalkboard-teacher me-1"></i>Add Teachers
-                            </a>
-                        {% endif %}
                     </div>
                 {% endif %}
             </div>
