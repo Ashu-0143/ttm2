@@ -19,7 +19,7 @@ def format_timetable_for_web(section):
     display_schedule = []
     
     # Generate periods list with lunch inserted
-    for i in range(9):  # 8 teaching periods + 1 lunch = 9 slots
+    for i in range(8):  # 7 teaching periods + 1 lunch = 8 slots
         if i == lunch_position:
             periods.append("LUNCH")
         elif i < lunch_position:
@@ -41,7 +41,7 @@ def format_timetable_for_web(section):
         day_schedule = []
         teaching_period_index = 0
         
-        for display_slot in range(9):  # 9 display slots total
+        for display_slot in range(8):  # 8 display slots total
             if display_slot == lunch_position:
                 # Insert lunch break
                 day_schedule.append({

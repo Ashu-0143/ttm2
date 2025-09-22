@@ -6,7 +6,7 @@ def generate_clash_free_timetable(sections):
     This algorithm ensures no teacher conflicts from the first try.
     """
     days = 6
-    periods = 8  # 8 teaching periods
+    periods = 7  # 7 teaching periods
     
     # Global teacher availability tracker
     # teacher_schedule[teacher_name][day][period] = section_name or None
@@ -55,7 +55,7 @@ def generate_clash_free_timetable(sections):
                     for start in range(len(evening_periods) - lab_subject.block_size + 1):
                         actual_start = evening_periods[start]
                         actual_end = actual_start + lab_subject.block_size
-                        if actual_end <= periods:  # Make sure we don't exceed 8 periods
+                        if actual_end <= periods:  # Make sure we don't exceed 7 periods
                             possible_slots.append((actual_start, actual_end))
                 
                 if not possible_slots:
@@ -157,7 +157,7 @@ def generate_timetable_original(sections):
     then places theory subjects one period at a time.
     """
     days = 6
-    periods = 8  # Updated to 8 periods
+    periods = 7  # Updated to 7 periods
 
     for section in sections:
         # Clear existing timetable

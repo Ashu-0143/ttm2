@@ -22,7 +22,7 @@ class Section:
         self.name = name
         self.year = year
         self.subjects = subjects
-        self.timetable = [[None for _ in range(8)] for _ in range(6)]  # 8 teaching periods
+        self.timetable = [[None for _ in range(7)] for _ in range(6)]  # 7 teaching periods
     
     def get_lunch_period_position(self):
         """Get lunch break position based on year level (for display purposes)"""
@@ -40,4 +40,4 @@ class Section:
     def get_evening_periods(self):
         """Get list of evening period indices (after lunch)"""
         lunch_pos = self.get_lunch_period_position()
-        return list(range(lunch_pos, 8))  # 8 total teaching periods
+        return list(range(lunch_pos, 7))  # 7 total teaching periods
