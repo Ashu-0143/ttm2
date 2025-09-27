@@ -96,11 +96,16 @@ def subjects():
             subject_data['is_lab'],
             subject_data['block_size']
         )
+        # Attach assigned teachers list for template rendering
+        subject.teachers = subject_data.get('teachers', [])
         subjects.append(subject)
     return render_template('subjects.html', subjects=subjects, teachers=teachers)
 
 @app.route('/add_subject', methods=['POST'])
 def add_subject():
+    # Add teachers to the subject
+    teachers = request.form.getlist('teachers')
+    
     init_session()
     name = request.form.get('name', '').strip()
     periods_per_week = request.form.get('periods_per_week', type=int)
@@ -129,7 +134,8 @@ def add_subject():
         'name': name,
         'periods_per_week': periods_per_week,
         'is_lab': is_lab,
-        'block_size': block_size or 1
+        'block_size': block_size or 1,
+        'teachers': teachers
     })
     session.modified = True
     flash(f'Subject {name} added successfully', 'success')
@@ -154,10 +160,11 @@ def delete_subject(subject_name):
     flash(f'Subject {subject_name} deleted successfully', 'success')
     return redirect(url_for('subjects'))
 
+
 @app.route('/sections')
 def sections():
     init_session()
-    teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
+    teachers = [Teacher(t['name'], t['max_load']) for t in session['teachers']]
     subjects = []
     for subject_data in session['subjects']:
         subject = Subject(
@@ -166,15 +173,44 @@ def sections():
             subject_data['is_lab'],
             subject_data['block_size']
         )
+        subject.teachers = subject_data.get('teachers', [])
         subjects.append(subject)
-    
-    sections = []
+    # Prepare section data with subject-teacher assignments
+    section_list = []
     for section_data in session['sections']:
-        section_subjects = [s for s in subjects if s.name in section_data['subject_names']]
-        section = Section(section_data['name'], section_data['year'], section_subjects)
-        sections.append(section)
+        assignments = section_data.get('subject_assignments', [])
+        section_subjects = []
+        for subj_name in section_data.get('subject_names', []):
+            subj = next((s for s in subjects if s.name == subj_name), None)
+            teacher_name = None
+            for a in assignments:
+                if a['subject'] == subj_name:
+                    teacher_name = a['teacher']
+            section_subjects.append({'subject': subj, 'teacher': teacher_name})
+        section_list.append({
+            'name': section_data['name'],
+            'year': section_data['year'],
+            'subjects': section_subjects
+        })
+    return render_template('sections.html', sections=section_list, subjects=subjects, teachers=teachers)
     
-    return render_template('sections.html', sections=sections, subjects=subjects)
+@app.route('/assign_teachers_to_subject/<subject_name>', methods=['POST'])
+def assign_teachers_to_subject(subject_name):
+    init_session()
+    selected_teachers = request.form.getlist('teachers')
+    found = False
+    for subject in session['subjects']:
+        if subject['name'] == subject_name:
+            subject['teachers'] = selected_teachers
+            found = True
+            break
+    session.modified = True
+    if found:
+        flash(f'Teachers assigned to {subject_name} successfully.', 'success')
+    else:
+        flash(f'Subject {subject_name} not found.', 'error')
+    return redirect(url_for('subjects'))
+
 
 @app.route('/add_section', methods=['POST'])
 def add_section():
@@ -182,29 +218,34 @@ def add_section():
     name = request.form.get('name', '').strip()
     year = request.form.get('year', '').strip()
     subject_names = request.form.getlist('subject_names')
-    
+    subject_assignments = []
+    for subj_name in subject_names:
+        teacher = request.form.get(f'teacher_for_{subj_name}')
+        # Only allow selection from assigned teachers
+        subject_data = next((s for s in session['subjects'] if s['name'] == subj_name), None)
+        if subject_data and teacher and teacher not in subject_data.get('teachers', []):
+            flash(f'Teacher {teacher} is not assigned to subject {subj_name}.', 'error')
+            return redirect(url_for('sections'))
+        subject_assignments.append({'subject': subj_name, 'teacher': teacher})
     if not name:
         flash('Section name is required', 'error')
         return redirect(url_for('sections'))
-    
     if not year:
         flash('Year is required', 'error')
         return redirect(url_for('sections'))
-    
     if not subject_names:
         flash('At least one subject must be selected', 'error')
         return redirect(url_for('sections'))
-    
     # Check if section already exists
     for section in session['sections']:
         if section['name'].lower() == name.lower():
             flash('Section with this name already exists', 'error')
             return redirect(url_for('sections'))
-    
     session['sections'].append({
         'name': name,
         'year': year,
-        'subject_names': subject_names
+        'subject_names': subject_names,
+        'subject_assignments': subject_assignments
     })
     session.modified = True
     flash(f'Section {name} added successfully', 'success')
@@ -221,16 +262,13 @@ def delete_section(section_name):
 @app.route('/generate_timetable')
 def generate_timetable_view():
     init_session()
-    
     if not session['sections']:
         flash('No sections available. Please add at least one section.', 'error')
         return redirect(url_for('sections'))
-    
     try:
         # Reset teacher loads
         for teacher_data in session['teachers']:
             teacher_data['current_load'] = 0
-        
         # Create objects from session data
         teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
         subjects = []
@@ -242,13 +280,20 @@ def generate_timetable_view():
                 subject_data['block_size']
             )
             subjects.append(subject)
-        
         sections = []
         for section_data in session['sections']:
-            section_subjects = [s for s in subjects if s.name in section_data['subject_names']]
-            section = Section(section_data['name'], section_data['year'], section_subjects)
+            subject_assignments = []
+            for assignment in section_data.get('subject_assignments', []):
+                subj = next((s for s in subjects if s.name == assignment['subject']), None)
+                teacher_obj = None
+                if subj and assignment['teacher']:
+                    teacher_obj = teachers.get(assignment['teacher'])
+                if subj and teacher_obj:
+                    # Always assign the teacher from the section assignment
+                    subj.teacher = teacher_obj
+                    subject_assignments.append((subj, teacher_obj))
+            section = Section(section_data['name'], section_data['year'], subject_assignments)
             sections.append(section)
-        
         # Generate timetables
         generated_sections = generate_timetable(sections)
         
@@ -330,9 +375,23 @@ def edit_timetable():
     
     sections = []
     for section_data in session['generated_sections']:
-        section_subjects = [subjects_dict[name] for name in section_data['subject_names'] if name in subjects_dict]
-        section = Section(section_data['name'], section_data['year'], section_subjects)
-        
+        subject_assignments = []
+        for name in section_data['subject_names']:
+            subj = subjects_dict.get(name)
+            teacher_name = None
+            # Try to get teacher from timetable data if available
+            for day in section_data['timetable']:
+                for period in day:
+                    if period and period['name'] == name:
+                        teacher_name = period.get('teacher')
+                        break
+                if teacher_name:
+                    break
+            teacher_obj = teachers.get(teacher_name) if teacher_name else None
+            if subj and teacher_obj:
+                subj.teacher = teacher_obj
+                subject_assignments.append((subj, teacher_obj))
+        section = Section(section_data['name'], section_data['year'], subject_assignments)
         # Reconstruct timetable from stored data
         for day in range(6):
             for period in range(7):
@@ -340,7 +399,6 @@ def edit_timetable():
                 if stored_subject:
                     subject = subjects_dict.get(stored_subject['name'])
                     section.timetable[day][period] = subject
-    
         sections.append(section)
     
     # Detect current conflicts
@@ -542,6 +600,32 @@ def timestamp_to_date(timestamp):
     """Convert timestamp to readable date"""
     import time
     return time.strftime('%Y-%m-%d %H:%M', time.localtime(timestamp))
+
+@app.route('/remove_teacher_from_section/<section_name>/<subject_name>', methods=['POST'])
+def remove_teacher_from_section(section_name, subject_name):
+    init_session()
+    for section in session['sections']:
+        if section['name'] == section_name:
+            for assignment in section.get('subject_assignments', []):
+                if assignment['subject'] == subject_name:
+                    assignment['teacher'] = None
+                    break
+            break
+    session.modified = True
+    flash(f'Removed teacher from {subject_name} in {section_name}.', 'success')
+    return redirect(url_for('sections'))
+
+@app.route('/remove_teacher_from_subject/<subject_name>/<teacher_name>', methods=['POST'])
+def remove_teacher_from_subject(subject_name, teacher_name):
+    init_session()
+    for subject in session['subjects']:
+        if subject['name'] == subject_name:
+            if 'teachers' in subject and teacher_name in subject['teachers']:
+                subject['teachers'].remove(teacher_name)
+                session.modified = True
+                flash(f'Removed {teacher_name} from {subject_name}.', 'success')
+            break
+    return redirect(url_for('subjects'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,11 +1,22 @@
 class Teacher:
-    def __init__(self, name, max_load=28):
+    def __init__(self, name, max_load=28, subjects=None):
         self.name = name
         self.max_load = max_load
         self.current_load = 0
+        self.subjects = subjects if subjects is not None else []  # List of subject names
 
     def can_teach(self, periods):
         return self.current_load + periods <= self.max_load
+
+    def can_teach_subject(self, subject_name):
+        return subject_name in self.subjects
+
+    def is_assigned_to_section(self, section, subject_name):
+        # Check if this teacher is already assigned to this section for any subject
+        for subj, teacher in section.subject_assignments:
+            if teacher.name == self.name and subj.name != subject_name:
+                return True
+        return False
 
 
 class Subject:
@@ -20,8 +31,10 @@ class Section:
     def __init__(self, name, year, subject_assignments):
         self.name = name
         self.year = year
-        self.subject_assignments = subject_assignments  # List of {subject, teacher} pairs
+        self.subject_assignments = subject_assignments  # List of (subject, teacher) pairs
         self.timetable = [[None for _ in range(7)] for _ in range(6)]  # 7 teaching periods
+        # For compatibility: subjects property is a list of subject objects
+        self.subjects = [subj for subj, teacher in subject_assignments] if subject_assignments else []
     
     def get_lunch_period_position(self):
         """Get lunch break position based on year level (for display purposes)"""

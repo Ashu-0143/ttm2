@@ -33,23 +33,18 @@ def generate_clash_free_timetable(sections):
             placed = False
             attempts = 0
             max_attempts = 200  # Increased attempts due to lunch constraints
-            
             morning_periods = section.get_morning_periods()
             evening_periods = section.get_evening_periods()
-            
             while not placed and attempts < max_attempts:
                 day = random.randint(0, days-1)
-                
                 # Try to place lab block either completely in morning OR evening
                 possible_slots = []
-                
                 # Check if lab can fit in morning periods
                 if len(morning_periods) >= lab_subject.block_size:
                     for start in range(len(morning_periods) - lab_subject.block_size + 1):
                         end = start + lab_subject.block_size
                         if end <= len(morning_periods):
                             possible_slots.append((start, end))
-                
                 # Check if lab can fit in evening periods
                 if len(evening_periods) >= lab_subject.block_size:
                     for start in range(len(evening_periods) - lab_subject.block_size + 1):
@@ -57,40 +52,33 @@ def generate_clash_free_timetable(sections):
                         actual_end = actual_start + lab_subject.block_size
                         if actual_end <= periods:  # Make sure we don't exceed 7 periods
                             possible_slots.append((actual_start, actual_end))
-                
                 if not possible_slots:
                     attempts += 1
                     continue
-                
                 # Randomly choose one of the possible slots
                 start_period, end_period = random.choice(possible_slots)
-                
                 # Check if all consecutive periods are free in section timetable
                 section_slots_free = all(
                     section.timetable[day][p] is None 
                     for p in range(start_period, end_period)
                 )
-                
                 # Check if teacher is available for all consecutive periods
                 teacher_available = all(
                     teacher_schedule[teacher_name][day][p] is None 
                     for p in range(start_period, end_period)
                 )
-                
                 # Check teacher load capacity
                 teacher_can_handle = lab_subject.teacher.can_teach(lab_subject.block_size)
-                
-                if section_slots_free and teacher_available and teacher_can_handle:
+                # Enforce: teacher can only teach one subject per class (section)
+                already_assigned = lab_subject.teacher.is_assigned_to_section(section, lab_subject.name)
+                if section_slots_free and teacher_available and teacher_can_handle and not already_assigned:
                     # Place the lab subject
                     for p in range(start_period, end_period):
                         section.timetable[day][p] = lab_subject
                         teacher_schedule[teacher_name][day][p] = section.name
-                    
                     lab_subject.teacher.current_load += lab_subject.block_size
                     placed = True
-                
                 attempts += 1
-            
             if not placed:
                 raise Exception(f"Could not place lab subject {lab_subject.name} in section {section.name}. Try reducing lab block sizes or teacher loads.")
     
@@ -101,40 +89,32 @@ def generate_clash_free_timetable(sections):
             teacher_name = theory_subject.teacher.name
             periods_to_place = theory_subject.periods_per_week
             periods_placed = 0
-            
             while periods_placed < periods_to_place:
                 placed = False
                 attempts = 0
                 max_attempts = 100
-                
                 while not placed and attempts < max_attempts:
                     day = random.randint(0, days-1)
-                    
-                    # Theory subjects can be placed in any of the 8 teaching periods
+                    # Theory subjects can be placed in any of the 7 teaching periods
                     period = random.randint(0, periods-1)
-                    
                     # Check section slot is free
                     section_slot_free = section.timetable[day][period] is None
-                    
                     # Check teacher availability
                     teacher_available = teacher_schedule[teacher_name][day][period] is None
-                    
                     # Check teacher load capacity
                     teacher_can_handle = theory_subject.teacher.can_teach(1)
-                    
-                    if section_slot_free and teacher_available and teacher_can_handle:
+                    # Enforce: teacher can only teach one subject per class (section)
+                    already_assigned = theory_subject.teacher.is_assigned_to_section(section, theory_subject.name)
+                    if section_slot_free and teacher_available and teacher_can_handle and not already_assigned:
                         # Place the subject
                         section.timetable[day][period] = theory_subject
                         teacher_schedule[teacher_name][day][period] = section.name
                         theory_subject.teacher.current_load += 1
                         periods_placed += 1
                         placed = True
-                    
                     attempts += 1
-                
                 if not placed:
                     raise Exception(f"Could not place all periods for {theory_subject.name} in section {section.name}. Try adjusting teacher loads or periods per week.")
-    
     return sections
 
 def generate_timetable(sections):

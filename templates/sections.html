@@ -30,17 +30,28 @@
                         {% if subjects %}
                             <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
                                 {% for subject in subjects %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="subject_{{ loop.index }}" 
-                                           name="subject_names" value="{{ subject.name }}">
-                                    <label class="form-check-label" for="subject_{{ loop.index }}">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input subject-checkbox" type="checkbox" id="subject_{{ loop.index0 }}"
+                                           name="subject_names" value="{{ subject.name }}" onchange="toggleTeacherDropdown('teacher_for_{{ subject.name }}', this.checked)">
+                                    <label class="form-check-label" for="subject_{{ loop.index0 }}">
                                         <i class="fas {% if subject.is_lab %}fa-flask{% else %}fa-book{% endif %} me-1"></i>
-                                        {{ subject.name }} 
+                                        {{ subject.name }}
                                         <small class="text-muted">(Teacher assigned per section)</small>
                                         {% if subject.is_lab %}
                                             <span class="badge bg-warning text-dark ms-1">Lab</span>
                                         {% endif %}
+                                        {% if subject.teachers %}
+                                            <span class="badge bg-success ms-1">Assigned: {{ subject.teachers|join(', ') }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-1">No teachers assigned</span>
+                                        {% endif %}
                                     </label>
+                                    <select class="form-select mt-2" name="teacher_for_{{ subject.name }}" id="teacher_for_{{ subject.name|replace(' ', '_') }}">
+                                        <option value="">-- Select Teacher --</option>
+                                        {% for teacher_name in subject.teachers %}
+                                            <option value="{{ teacher_name }}">{{ teacher_name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -54,6 +65,18 @@
                     <button type="submit" class="btn btn-info" {% if not subjects %}disabled{% endif %}>
                         <i class="fas fa-plus me-1"></i>Add Section
                     </button>
+{% block scripts %}
+<script>
+function toggleTeacherDropdown(dropdownId, checked) {
+    var dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+        dropdown.disabled = !checked;
+        dropdown.required = checked;
+        if (!checked) dropdown.value = '';
+    }
+}
+</script>
+{% endblock %}
                 </form>
             </div>
         </div>
@@ -83,15 +106,25 @@
                         <div class="card-body">
                             <h6>Assigned Subjects ({{ section.subjects|length }}):</h6>
                             <div class="row">
-                                {% for subject in section.subjects %}
+                                {% for subj in section.subjects %}
                                 <div class="col-md-6 mb-2">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas {% if subject.is_lab %}fa-flask text-warning{% else %}fa-book text-primary{% endif %} me-2"></i>
+                                        <i class="fas {% if subj.subject.is_lab %}fa-flask text-warning{% else %}fa-book text-primary{% endif %} me-2"></i>
                                         <div>
-                                            <strong>{{ subject.name }}</strong>
+                                            <strong>{{ subj.subject.name }}</strong>
                                             <small class="text-muted d-block">
-                                                Teacher assigned per section • {{ subject.periods_per_week }} periods/week
-                                                {% if subject.is_lab %}• Lab ({{ subject.block_size }} block){% endif %}
+                                                {% if subj.teacher %}
+                                                    <span class="badge bg-success">{{ subj.teacher }}</span>
+                                                    <form method="POST" action="{{ url_for('remove_teacher_from_section', section_name=section.name, subject_name=subj.subject.name) }}" style="display:inline;">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger ms-2" title="Remove teacher" onclick="return confirm('Remove teacher from {{ subj.subject.name }}?')">
+                                                            <i class="fas fa-user-times"></i>
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">No teacher assigned</span>
+                                                {% endif %}
+                                                • {{ subj.subject.periods_per_week }} periods/week
+                                                {% if subj.subject.is_lab %}• Lab ({{ subj.subject.block_size }} block){% endif %}
                                             </small>
                                         </div>
                                     </div>
