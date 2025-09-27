@@ -98,30 +98,44 @@
                         {% for day_index in range(6) %}
                         <tr>
                             <td class="fw-bold text-center table-secondary">{{ timetable.days[day_index] }}</td>
+                            {% set skip_cells = [] %}
                             {% for period_index in range(8) %}
-                            <td class="timetable-cell text-center">
-                                {% set subject = timetable.schedule[day_index][period_index] %}
-                                {% if subject %}
-                                    {% if subject.is_lunch %}
-                                        <div class="lunch-cell">
-                                            <div class="fw-bold"><i class="fas fa-utensils me-1"></i>LUNCH</div>
-                                            <small>Break Time</small>
-                                        </div>
-                                    {% else %}
-                                        <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %}">
-                                            <div class="fw-bold">{{ subject.name }}</div>
-                                            <small>{{ subject.teacher }}</small>
-                                            {% if subject.is_lab %}
-                                                <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                {% if period_index not in skip_cells %}
+                                    {% set subject = timetable.schedule[day_index][period_index] %}
+                                    {% if subject %}
+                                        <td class="timetable-cell text-center" {% if subject.get('colspan', 1) > 1 %}colspan="{{ subject.colspan }}"{% endif %}>
+                                            {% if subject.is_lunch %}
+                                                <div class="lunch-cell">
+                                                    <div class="fw-bold"><i class="fas fa-utensils me-1"></i>LUNCH</div>
+                                                    <small>Break Time</small>
+                                                </div>
+                                            {% elif subject.get('is_merged_lab', False) %}
+                                                <div class="subject-cell lab-cell merged-lab-cell">
+                                                    <div class="fw-bold">{{ subject.name }}</div>
+                                                    <small>{{ subject.teacher }}</small>
+                                                    <div><small><i class="fas fa-flask"></i> {{ subject.block_size }}-Period Lab Block</small></div>
+                                                </div>
+                                                {% for span_index in range(1, subject.colspan) %}
+                                                    {% set _ = skip_cells.append(period_index + span_index) %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %}">
+                                                    <div class="fw-bold">{{ subject.name }}</div>
+                                                    <small>{{ subject.teacher }}</small>
+                                                    {% if subject.is_lab %}
+                                                        <div><small><i class="fas fa-flask"></i> Lab</small></div>
+                                                    {% endif %}
+                                                </div>
                                             {% endif %}
-                                        </div>
+                                        </td>
+                                    {% else %}
+                                        <td class="timetable-cell text-center">
+                                            <div class="empty-cell p-2">
+                                                <small class="text-muted">Free</small>
+                                            </div>
+                                        </td>
                                     {% endif %}
-                                {% else %}
-                                    <div class="empty-cell p-2">
-                                        <small class="text-muted">Free</small>
-                                    </div>
                                 {% endif %}
-                            </td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
@@ -194,6 +208,12 @@
     .lab-cell {
         background-color: #fff3cd !important;
         color: #000 !important;
+    }
+    
+    .merged-lab-cell {
+        background-color: #ffeaa7 !important;
+        border: 2px solid #fdcb6e !important;
+        font-weight: bold !important;
     }
 }
 </style>
