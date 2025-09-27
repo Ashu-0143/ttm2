@@ -60,7 +60,7 @@
                                     </td>
                                     <td>{{ teacher.max_load }}</td>
                                     <td>
-                                        <span class="badge {% if teacher.current_load >= teacher.max_load %}bg-danger{% elif teacher.current_load >= teacher.max_load * 0.8 %}bg-warning{% else %}bg-success{% endif %}">
+                                        <span class="badge fs-6 {% if teacher.current_load >= teacher.max_load %}bg-danger text-white{% elif teacher.current_load >= teacher.max_load * 0.8 %}bg-warning text-dark{% else %}bg-success text-white{% endif %}">
                                             {{ teacher.current_load }}
                                         </span>
                                     </td>
@@ -108,7 +108,7 @@
                                 <div class="progress mb-2">
                                     {% set load_percentage = (teacher.current_load / teacher.max_load * 100) %}
                                     <div class="progress-bar {% if load_percentage >= 100 %}bg-danger{% elif load_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
-                                         style="width: {{ load_percentage }}%">
+                                         style="width: {{ [load_percentage, 100]|min }}%;">
                                     </div>
                                 </div>
                                 <small class="text-muted">

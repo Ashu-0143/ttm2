@@ -35,7 +35,17 @@ def teachers():
     teachers = []
     for teacher_data in session['teachers']:
         teacher = Teacher(teacher_data['name'], teacher_data['max_load'])
-        teacher.current_load = teacher_data.get('current_load', 0)
+        # Calculate current load based on section assignments
+        current_load = 0
+        for section_data in session.get('sections', []):
+            for assignment in section_data.get('subject_assignments', []):
+                if assignment.get('teacher') == teacher.name:
+                    # Find the subject to get periods per week
+                    for subject_data in session.get('subjects', []):
+                        if subject_data['name'] == assignment['subject']:
+                            current_load += subject_data['periods_per_week']
+                            break
+        teacher.current_load = current_load
         teachers.append(teacher)
     return render_template('teachers.html', teachers=teachers)
 

@@ -91,34 +91,49 @@
                                             -
                                         {% endif %}
                                     </td>
-                                                                                                            <div class="mb-2"></div>
-                                                                                                                <span class="fw-bold">Assigned:</span>
-                                                                                                                {% if subject.teachers and subject.teachers|length > 0 %}
-                                                                                                                    {% for teacher_name in subject.teachers %}
-                                                                                                                        {% set teacher_obj = teachers | selectattr('name', 'equalto', teacher_name) | list | first %}
-                                                                                                                        {% if teacher_obj %}
-                                                                                                                            <span class="badge bg-success">{{ teacher_obj.name }}</span>
-                                                                                                                            <form method="POST" action="{{ url_for('remove_teacher_from_subject', subject_name=subject.name, teacher_name=teacher_obj.name) }}" style="display:inline;"></form>
-                                                                                                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Remove teacher" onclick="return confirm('Remove {{ teacher_obj.name }} from {{ subject.name }}?')"></button>
-                                                                                                                                    <i class="fas fa-user-times"></i>
-                                                                                                                                </button>
-                                                                                                                            </form>
-                                                                                                                        {% else %}
-                                                                                                                            <span class="badge bg-warning text-dark">{{ teacher_name }}</span>
-                                                                                                                        {% endif %}
-                                                                                                                    {% endfor %}
-                                                                                                                {% else %}
-                                                                                                                    <span class="badge bg-secondary">No teachers assigned</span>
-                                                                                                                {% endif %}
-                                                                                                            </div>
-                                                                                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignTeachersModal{{ subject.name|replace(' ', '_') }}">
-                                                                                                                <i class="fas fa-user-plus"></i> Assign Teachers
-                                                                                                            </button></button>
-                                                                                                                    <a href="{{ url_for('delete_subject', subject_name=subject.name) }}" 
-                                                                                                                         class="btn btn-sm btn-outline-danger"
-                                                                                                                         onclick="return confirm('Are you sure you want to delete {{ subject.name }}?')">
-                                                                                                                            <i class="fas fa-trash"></i>
-                                                                                                                    </a>
+                                    <td class="text-end">
+                                        <div class="d-flex flex-column align-items-end gap-2">
+                                            <!-- Assigned Teachers -->
+                                            <div class="assigned-teachers">
+                                                {% if subject.teachers and subject.teachers|length > 0 %}
+                                                    {% for teacher_name in subject.teachers %}
+                                                        {% set teacher_obj = teachers | selectattr('name', 'equalto', teacher_name) | list | first %}
+                                                        {% if teacher_obj %}
+                                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                                <span class="text-info fw-semibold">{{ teacher_obj.name }}</span>
+                                                                <form method="POST" action="{{ url_for('remove_teacher_from_subject', subject_name=subject.name, teacher_name=teacher_obj.name) }}" class="d-inline">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                            title="Remove {{ teacher_obj.name }} from {{ subject.name }}"
+                                                                            onclick="return confirm('Remove {{ teacher_obj.name }} from {{ subject.name }}?')">
+                                                                        remove
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        {% else %}
+                                                            <div class="mb-1">
+                                                                <span class="text-warning fw-semibold">{{ teacher_name }}</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <div class="mb-1">
+                                                        <span class="text-muted fst-italic">No teachers assigned</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Action Buttons -->
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignTeachersModal{{ subject.name|replace(' ', '_') }}">
+                                                    <i class="fas fa-user-plus"></i> Assign Teachers
+                                                </button>
+                                                <a href="{{ url_for('delete_subject', subject_name=subject.name) }}" 
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   onclick="return confirm('Are you sure you want to delete {{ subject.name }}?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                                                                                                     <!-- Modal for assigning teachers -->
                                                                                                                     <div class="modal fade" id="assignTeachersModal{{ subject.name|replace(' ', '_') }}" tabindex="-1" aria-labelledby="assignTeachersLabel{{ subject.name|replace(' ', '_') }}" aria-hidden="true">
                                                                                                                         <div class="modal-dialog">
