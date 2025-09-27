@@ -53,11 +53,29 @@ def generate_clash_free_timetable(sections):
         placed = False
         allowed_starts = section.get_allowed_lab_starts(lab_subject.block_size)
         
-        # Generate all valid placement options
+        # Generate all valid placement options (try allowed starts first)
         candidates = []
         for day in range(days):
             for start in allowed_starts:
                 if start + lab_subject.block_size <= periods:
+                    # Check constraints
+                    section_slots_free = all(
+                        section.timetable[day][p] is None 
+                        for p in range(start, start + lab_subject.block_size)
+                    )
+                    teacher_available = all(
+                        teacher_schedule[teacher_name][day][p] is None 
+                        for p in range(start, start + lab_subject.block_size)
+                    )
+                    teacher_can_handle = lab_subject.teacher.can_teach(lab_subject.block_size)
+                    
+                    if section_slots_free and teacher_available and teacher_can_handle:
+                        candidates.append((day, start))
+        
+        # If no candidates with allowed starts, try any valid position
+        if not candidates:
+            for day in range(days):
+                for start in range(periods - lab_subject.block_size + 1):
                     # Check constraints
                     section_slots_free = all(
                         section.timetable[day][p] is None 
@@ -158,7 +176,7 @@ def generate_clash_free_timetable(sections):
                                 break
                 
                 if not placed:
-                    # Fallback: try any available slot
+                    # Fallback: try any available slot, ignoring teacher load constraints if necessary
                     fallback_attempts = 0
                     while not placed and fallback_attempts < 50:
                         day = random.randint(0, days-1)
@@ -166,14 +184,22 @@ def generate_clash_free_timetable(sections):
                         
                         section_slot_free = section.timetable[day][period] is None
                         teacher_available = teacher_schedule[teacher_name][day][period] is None
-                        teacher_can_handle = theory_subject.teacher.can_teach(1)
                         
-                        if section_slot_free and teacher_available and teacher_can_handle:
-                            section.timetable[day][period] = theory_subject
-                            teacher_schedule[teacher_name][day][period] = section.name
-                            theory_subject.teacher.current_load += 1
-                            periods_placed += 1
-                            placed = True
+                        if section_slot_free and teacher_available:
+                            # First try with load constraint
+                            if theory_subject.teacher.can_teach(1):
+                                section.timetable[day][period] = theory_subject
+                                teacher_schedule[teacher_name][day][period] = section.name
+                                theory_subject.teacher.current_load += 1
+                                periods_placed += 1
+                                placed = True
+                            # If load constraint fails, ignore it for this period
+                            elif fallback_attempts > 25:
+                                section.timetable[day][period] = theory_subject
+                                teacher_schedule[teacher_name][day][period] = section.name
+                                theory_subject.teacher.current_load += 1
+                                periods_placed += 1
+                                placed = True
                         
                         fallback_attempts += 1
                     
@@ -225,8 +251,8 @@ def generate_timetable_original(sections):
                 
                 # Check if all required consecutive periods are available
                 if all(section.timetable[day][p] is None for p in range(start, start + subj.block_size)):
-                    # Check if teacher is available for all these periods
-                    if subj.teacher.can_teach(subj.block_size):
+                    # Check if teacher is available for all these periods (be more flexible on load)
+                    if subj.teacher.can_teach(subj.block_size) or attempts > max_attempts // 2:
                         # Place the lab subject in consecutive periods
                         for p in range(start, start + subj.block_size):
                             section.timetable[day][p] = subj

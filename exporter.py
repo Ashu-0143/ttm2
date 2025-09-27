@@ -78,9 +78,10 @@ def format_timetable_for_web(section):
                     if subject and subject.is_lab and teaching_period_index in lab_blocks:
                         # This is the start of a lab block
                         lab_span = lab_blocks[teaching_period_index]
+                        teacher_name = subject.teacher.name if subject.teacher else 'Unassigned'
                         day_schedule.append({
                             'name': f"{subject.name} (Lab)",
-                            'teacher': subject.teacher.name,
+                            'teacher': teacher_name,
                             'is_lab': True,
                             'is_lunch': False,
                             'colspan': lab_span,
@@ -104,9 +105,10 @@ def format_timetable_for_web(section):
                         teaching_period_index += 1
                     elif subject:
                         # Regular theory subject
+                        teacher_name = subject.teacher.name if subject.teacher else 'Unassigned'
                         day_schedule.append({
                             'name': subject.name,
-                            'teacher': subject.teacher.name,
+                            'teacher': teacher_name,
                             'is_lab': subject.is_lab,
                             'is_lunch': False,
                             'colspan': 1,
