@@ -385,22 +385,15 @@ def edit_timetable():
     
     sections = []
     for section_data in session['generated_sections']:
+        # Create subject assignments with proper teacher assignments from stored data
         subject_assignments = []
-        for name in section_data['subject_names']:
-            subj = subjects_dict.get(name)
-            teacher_name = None
-            # Try to get teacher from timetable data if available
-            for day in section_data['timetable']:
-                for period in day:
-                    if period and period['name'] == name:
-                        teacher_name = period.get('teacher')
-                        break
-                if teacher_name:
-                    break
-            teacher_obj = teachers.get(teacher_name) if teacher_name else None
+        for assignment in section_data.get('subject_assignments', []):
+            subj = subjects_dict.get(assignment['subject'])
+            teacher_obj = teachers.get(assignment['teacher'])
             if subj and teacher_obj:
                 subj.teacher = teacher_obj
                 subject_assignments.append((subj, teacher_obj))
+        
         section = Section(section_data['name'], section_data['year'], subject_assignments)
         # Reconstruct timetable from stored data
         for day in range(6):
@@ -565,8 +558,16 @@ def view_current_timetable():
     
     sections = []
     for section_data in session['generated_sections']:
-        section_subjects = [subjects_dict[name] for name in section_data['subject_names'] if name in subjects_dict]
-        section = Section(section_data['name'], section_data['year'], section_subjects)
+        # Create subject assignments with proper teacher assignments from stored data
+        subject_assignments = []
+        for assignment in section_data.get('subject_assignments', []):
+            subj = subjects_dict.get(assignment['subject'])
+            teacher_obj = teachers.get(assignment['teacher'])
+            if subj and teacher_obj:
+                subj.teacher = teacher_obj
+                subject_assignments.append((subj, teacher_obj))
+        
+        section = Section(section_data['name'], section_data['year'], subject_assignments)
         
         # Reconstruct timetable from stored data
         for day in range(6):

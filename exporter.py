@@ -40,13 +40,21 @@ def format_timetable_for_web(section):
     for d in range(6):
         day_schedule = []
         teaching_period_index = 0
-        skip_next = 0
+        
+        # First pass: identify lab blocks
+        lab_blocks = {}
+        for p in range(7):
+            subject = section.timetable[d][p]
+            if subject and subject.is_lab:
+                # Check if this is the start of a lab block
+                if p == 0 or section.timetable[d][p-1] != subject:
+                    # Count consecutive periods
+                    span = 1
+                    while (p + span < 7 and section.timetable[d][p + span] == subject):
+                        span += 1
+                    lab_blocks[p] = span
         
         for display_slot in range(8):  # 8 display slots total
-            if skip_next > 0:
-                skip_next -= 1
-                continue
-                
             if display_slot == lunch_position:
                 # Insert lunch break
                 day_schedule.append({
@@ -59,17 +67,14 @@ def format_timetable_for_web(section):
                 })
             else:
                 # Add teaching period
-                subject = section.timetable[d][teaching_period_index]
-                if subject and subject.is_lab:
-                    # Check for lab block - find consecutive periods with same lab subject
-                    lab_span = 1
-                    check_period = teaching_period_index + 1
-                    while (check_period < 7 and 
-                           section.timetable[d][check_period] == subject):
-                        lab_span += 1
-                        check_period += 1
+                if teaching_period_index >= 7:
+                    break
                     
-                    # Create merged lab entry
+                subject = section.timetable[d][teaching_period_index]
+                
+                if subject and subject.is_lab and teaching_period_index in lab_blocks:
+                    # This is the start of a lab block
+                    lab_span = lab_blocks[teaching_period_index]
                     day_schedule.append({
                         'name': f"{subject.name} (Lab)",
                         'teacher': subject.teacher.name,
@@ -79,18 +84,9 @@ def format_timetable_for_web(section):
                         'is_merged_lab': True,
                         'block_size': lab_span
                     })
-                    
-                    # Skip the next periods that are part of this lab block
-                    # Adjust for lunch position if lab crosses into post-lunch display slots
-                    periods_to_skip = lab_span - 1
-                    for skip_check in range(1, lab_span):
-                        next_display_slot = display_slot + skip_check
-                        if next_display_slot < 8 and next_display_slot != lunch_position:
-                            skip_next += 1
-                    
                     teaching_period_index += lab_span
-                elif subject:
-                    # Regular theory subject
+                elif subject and not (subject.is_lab and teaching_period_index not in lab_blocks):
+                    # Regular theory subject or standalone lab period
                     day_schedule.append({
                         'name': subject.name,
                         'teacher': subject.teacher.name,
@@ -101,8 +97,9 @@ def format_timetable_for_web(section):
                     })
                     teaching_period_index += 1
                 else:
-                    # Empty slot
-                    day_schedule.append(None)
+                    # Empty slot or part of lab block already processed
+                    if not (subject and subject.is_lab):
+                        day_schedule.append(None)
                     teaching_period_index += 1
         
         timetable_data['schedule'].append(day_schedule)
