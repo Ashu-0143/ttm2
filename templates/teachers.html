@@ -108,7 +108,7 @@
                                 <div class="progress mb-2">
                                     {% set load_percentage = (teacher.current_load / teacher.max_load * 100) %}
                                     <div class="progress-bar {% if load_percentage >= 100 %}bg-danger{% elif load_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
-                                         style="width: {{ [load_percentage, 100]|min }}%;">
+                                         style="width: {{ [load_percentage, 100]|min }}%">
                                     </div>
                                 </div>
                                 <small class="text-muted">

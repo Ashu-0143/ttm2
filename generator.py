@@ -68,9 +68,8 @@ def generate_clash_free_timetable(sections):
                         for p in range(start, start + lab_subject.block_size)
                     )
                     teacher_can_handle = lab_subject.teacher.can_teach(lab_subject.block_size)
-                    already_assigned = lab_subject.teacher.is_assigned_to_section(section, lab_subject.name)
                     
-                    if section_slots_free and teacher_available and teacher_can_handle and not already_assigned:
+                    if section_slots_free and teacher_available and teacher_can_handle:
                         candidates.append((day, start))
         
         if candidates:
@@ -126,9 +125,8 @@ def generate_clash_free_timetable(sections):
                         section_slot_free = section.timetable[day][period] is None
                         teacher_available = teacher_schedule[teacher_name][day][period] is None
                         teacher_can_handle = theory_subject.teacher.can_teach(1)
-                        already_assigned = theory_subject.teacher.is_assigned_to_section(section, theory_subject.name)
                         
-                        if section_slot_free and teacher_available and teacher_can_handle and not already_assigned:
+                        if section_slot_free and teacher_available and teacher_can_handle:
                             # Calculate weight (prefer days not yet used for this subject)
                             weight = 2 if day not in days_used else 1
                             
@@ -169,9 +167,8 @@ def generate_clash_free_timetable(sections):
                         section_slot_free = section.timetable[day][period] is None
                         teacher_available = teacher_schedule[teacher_name][day][period] is None
                         teacher_can_handle = theory_subject.teacher.can_teach(1)
-                        already_assigned = theory_subject.teacher.is_assigned_to_section(section, theory_subject.name)
                         
-                        if section_slot_free and teacher_available and teacher_can_handle and not already_assigned:
+                        if section_slot_free and teacher_available and teacher_can_handle:
                             section.timetable[day][period] = theory_subject
                             teacher_schedule[teacher_name][day][period] = section.name
                             theory_subject.teacher.current_load += 1
