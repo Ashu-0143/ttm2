@@ -55,3 +55,35 @@ class Section:
         """Get list of evening period indices (after lunch)"""
         lunch_pos = self.get_lunch_period_position()
         return list(range(lunch_pos, 7))  # 7 total teaching periods
+    
+    def get_allowed_lab_starts(self, block_size):
+        """Get allowed starting positions for lab blocks based on year and block size"""
+        year_str = str(self.year).lower()
+        is_first_year = '1st' in year_str or 'first' in year_str or '1' in year_str
+        
+        allowed_starts = []
+        
+        if is_first_year:
+            # 1st year: lunch after period 3 (periods 0,1,2 = morning; 3,4,5,6 = afternoon)
+            if block_size == 4:
+                # 4-block labs: only afternoon (periods 3,4,5,6)
+                allowed_starts.append(3)
+            elif block_size == 3:
+                # 3-block labs: morning (0,1,2) or afternoon (4,5,6)
+                allowed_starts.extend([0, 4])
+            elif block_size == 2:
+                # 2-block labs: within morning (0,1) or (1,2) or afternoon (4,5) or (5,6)
+                allowed_starts.extend([0, 1, 4, 5])
+        else:
+            # 2nd/3rd year: lunch after period 4 (periods 0,1,2,3 = morning; 4,5,6 = afternoon)
+            if block_size == 4:
+                # 4-block labs: only morning (periods 0,1,2,3)
+                allowed_starts.append(0)
+            elif block_size == 3:
+                # 3-block labs: morning (1,2,3) or afternoon (4,5,6)
+                allowed_starts.extend([1, 4])
+            elif block_size == 2:
+                # 2-block labs: within morning (0,1) or (1,2) or (2,3) or afternoon (4,5) or (5,6)
+                allowed_starts.extend([0, 1, 2, 4, 5])
+        
+        return allowed_starts
