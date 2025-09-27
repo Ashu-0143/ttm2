@@ -88,20 +88,8 @@ def format_timetable_for_web(section):
                             'block_size': lab_span,
                             'is_hidden': False
                         })
-                        teaching_period_index += lab_span
-                    elif subject and not (subject.is_lab and teaching_period_index not in lab_blocks):
-                        # Regular theory subject
-                        day_schedule.append({
-                            'name': subject.name,
-                            'teacher': subject.teacher.name,
-                            'is_lab': subject.is_lab,
-                            'is_lunch': False,
-                            'colspan': 1,
-                            'is_merged_lab': False,
-                            'is_hidden': False
-                        })
-                        teaching_period_index += 1
-                    elif subject and subject.is_lab:
+                        teaching_period_index += 1  # Only advance by 1, not the full span
+                    elif subject and subject.is_lab and teaching_period_index not in lab_blocks:
                         # This is a continuation of a lab block, add hidden placeholder
                         day_schedule.append({
                             'name': '',
@@ -112,6 +100,18 @@ def format_timetable_for_web(section):
                             'is_merged_lab': False,
                             'is_hidden': True,
                             'is_part_of_lab': True
+                        })
+                        teaching_period_index += 1
+                    elif subject:
+                        # Regular theory subject
+                        day_schedule.append({
+                            'name': subject.name,
+                            'teacher': subject.teacher.name,
+                            'is_lab': subject.is_lab,
+                            'is_lunch': False,
+                            'colspan': 1,
+                            'is_merged_lab': False,
+                            'is_hidden': False
                         })
                         teaching_period_index += 1
                     else:
