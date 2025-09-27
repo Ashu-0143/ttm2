@@ -421,6 +421,15 @@ def edit_timetable():
                          suggestions=suggestions,
                          has_conflicts=len(conflicts) > 0)
 
+def display_index_to_timetable_index(display_period, lunch_position):
+    """Convert display period index (0-7 including lunch) to timetable index (0-6 teaching periods)"""
+    if display_period == lunch_position:
+        return None  # This is lunch, not a teaching period
+    elif display_period < lunch_position:
+        return display_period  # Before lunch, same index
+    else:
+        return display_period - 1  # After lunch, subtract 1
+
 @app.route('/move_subject', methods=['POST'])
 def move_subject():
     """Move a subject from one time slot to another"""
@@ -438,19 +447,32 @@ def move_subject():
     if not section_data:
         return jsonify({'success': False, 'message': 'Section not found'})
     
+    # Get lunch position (assume 4th position - between 3rd and 4th period)
+    lunch_position = 4
+    
+    # Convert display indices to timetable indices
+    from_timetable_period = display_index_to_timetable_index(from_period, lunch_position)
+    to_timetable_period = display_index_to_timetable_index(to_period, lunch_position)
+    
+    # Check if trying to move from/to lunch slot
+    if from_timetable_period is None:
+        return jsonify({'success': False, 'message': 'Cannot move from lunch period'})
+    if to_timetable_period is None:
+        return jsonify({'success': False, 'message': 'Cannot move to lunch period'})
+    
     # Get subject from source position
-    source_subject = section_data['timetable'][from_day][from_period]
+    source_subject = section_data['timetable'][from_day][from_timetable_period]
     if not source_subject:
         return jsonify({'success': False, 'message': 'No subject at source position'})
     
     # Check if destination is empty
-    dest_subject = section_data['timetable'][to_day][to_period]
+    dest_subject = section_data['timetable'][to_day][to_timetable_period]
     if dest_subject:
         return jsonify({'success': False, 'message': 'Destination slot is occupied'})
     
     # Move the subject
-    section_data['timetable'][to_day][to_period] = source_subject
-    section_data['timetable'][from_day][from_period] = None
+    section_data['timetable'][to_day][to_timetable_period] = source_subject
+    section_data['timetable'][from_day][from_timetable_period] = None
     session.modified = True
     
     return jsonify({'success': True, 'message': f'Moved {source_subject["name"]} successfully'})
@@ -472,13 +494,24 @@ def swap_subjects():
     if not section_data:
         return jsonify({'success': False, 'message': 'Section not found'})
     
+    # Get lunch position (assume 4th position - between 3rd and 4th period)
+    lunch_position = 4
+    
+    # Convert display indices to timetable indices
+    slot1_timetable_period = display_index_to_timetable_index(slot1_period, lunch_position)
+    slot2_timetable_period = display_index_to_timetable_index(slot2_period, lunch_position)
+    
+    # Check if trying to swap with lunch slot
+    if slot1_timetable_period is None or slot2_timetable_period is None:
+        return jsonify({'success': False, 'message': 'Cannot swap with lunch period'})
+    
     # Get subjects from both positions
-    subject1 = section_data['timetable'][slot1_day][slot1_period]
-    subject2 = section_data['timetable'][slot2_day][slot2_period]
+    subject1 = section_data['timetable'][slot1_day][slot1_timetable_period]
+    subject2 = section_data['timetable'][slot2_day][slot2_timetable_period]
     
     # Swap the subjects
-    section_data['timetable'][slot1_day][slot1_period] = subject2
-    section_data['timetable'][slot2_day][slot2_period] = subject1
+    section_data['timetable'][slot1_day][slot1_timetable_period] = subject2
+    section_data['timetable'][slot2_day][slot2_timetable_period] = subject1
     session.modified = True
     
     return jsonify({'success': True, 'message': 'Subjects swapped successfully'})

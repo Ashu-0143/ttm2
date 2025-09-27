@@ -113,6 +113,11 @@
                                             <div class="fw-bold"><i class="fas fa-utensils me-1"></i>LUNCH</div>
                                             <small>Break Time</small>
                                         </div>
+                                    {% elif subject.get('is_hidden', False) %}
+                                        <!-- Hidden placeholder for lab continuation - not editable -->
+                                        <div class="empty-cell p-2" style="opacity: 0.3;">
+                                            <small class="text-muted">Lab continues</small>
+                                        </div>
                                     {% else %}
                                         <div class="subject-cell {% if subject.is_lab %}lab-cell{% endif %} editable-subject"
                                              draggable="true"

@@ -36,10 +36,9 @@ def format_timetable_for_web(section):
         'lunch_position': lunch_position
     }
     
-    # Create schedule with lunch inserted at correct position and merge lab blocks
+    # Create schedule with lunch inserted at correct position and maintain exact 8-slot structure
     for d in range(6):
         day_schedule = []
-        teaching_period_index = 0
         
         # First pass: identify lab blocks
         lab_blocks = {}
@@ -54,7 +53,9 @@ def format_timetable_for_web(section):
                         span += 1
                     lab_blocks[p] = span
         
-        for display_slot in range(8):  # 8 display slots total
+        # Create display schedule ensuring exactly 8 slots
+        teaching_period_index = 0
+        for display_slot in range(8):
             if display_slot == lunch_position:
                 # Insert lunch break
                 day_schedule.append({
@@ -63,44 +64,60 @@ def format_timetable_for_web(section):
                     'is_lab': False,
                     'is_lunch': True,
                     'colspan': 1,
-                    'is_merged_lab': False
+                    'is_merged_lab': False,
+                    'is_hidden': False
                 })
             else:
                 # Add teaching period
                 if teaching_period_index >= 7:
-                    break
-                    
-                subject = section.timetable[d][teaching_period_index]
-                
-                if subject and subject.is_lab and teaching_period_index in lab_blocks:
-                    # This is the start of a lab block
-                    lab_span = lab_blocks[teaching_period_index]
-                    day_schedule.append({
-                        'name': f"{subject.name} (Lab)",
-                        'teacher': subject.teacher.name,
-                        'is_lab': True,
-                        'is_lunch': False,
-                        'colspan': lab_span,
-                        'is_merged_lab': True,
-                        'block_size': lab_span
-                    })
-                    teaching_period_index += lab_span
-                elif subject and not (subject.is_lab and teaching_period_index not in lab_blocks):
-                    # Regular theory subject or standalone lab period
-                    day_schedule.append({
-                        'name': subject.name,
-                        'teacher': subject.teacher.name,
-                        'is_lab': subject.is_lab,
-                        'is_lunch': False,
-                        'colspan': 1,
-                        'is_merged_lab': False
-                    })
-                    teaching_period_index += 1
+                    # Add empty slot if we've run out of teaching periods
+                    day_schedule.append(None)
                 else:
-                    # Empty slot or part of lab block already processed
-                    if not (subject and subject.is_lab):
+                    subject = section.timetable[d][teaching_period_index]
+                    
+                    if subject and subject.is_lab and teaching_period_index in lab_blocks:
+                        # This is the start of a lab block
+                        lab_span = lab_blocks[teaching_period_index]
+                        day_schedule.append({
+                            'name': f"{subject.name} (Lab)",
+                            'teacher': subject.teacher.name,
+                            'is_lab': True,
+                            'is_lunch': False,
+                            'colspan': lab_span,
+                            'is_merged_lab': True,
+                            'block_size': lab_span,
+                            'is_hidden': False
+                        })
+                        teaching_period_index += lab_span
+                    elif subject and not (subject.is_lab and teaching_period_index not in lab_blocks):
+                        # Regular theory subject
+                        day_schedule.append({
+                            'name': subject.name,
+                            'teacher': subject.teacher.name,
+                            'is_lab': subject.is_lab,
+                            'is_lunch': False,
+                            'colspan': 1,
+                            'is_merged_lab': False,
+                            'is_hidden': False
+                        })
+                        teaching_period_index += 1
+                    elif subject and subject.is_lab:
+                        # This is a continuation of a lab block, add hidden placeholder
+                        day_schedule.append({
+                            'name': '',
+                            'teacher': '',
+                            'is_lab': True,
+                            'is_lunch': False,
+                            'colspan': 1,
+                            'is_merged_lab': False,
+                            'is_hidden': True,
+                            'is_part_of_lab': True
+                        })
+                        teaching_period_index += 1
+                    else:
+                        # Empty slot
                         day_schedule.append(None)
-                    teaching_period_index += 1
+                        teaching_period_index += 1
         
         timetable_data['schedule'].append(day_schedule)
     
