@@ -25,6 +25,8 @@ class Subject:
         self.periods_per_week = periods_per_week
         self.is_lab = is_lab
         self.block_size = block_size
+        self.teachers = []  # List of teacher names assigned to this subject
+        self.teacher = None  # Currently assigned teacher object
 
 
 class Section:
