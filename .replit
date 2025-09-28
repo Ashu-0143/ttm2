@@ -41,5 +41,9 @@ externalPort = 3000
 localPort = 38977
 externalPort = 3001
 
+[[ports]]
+localPort = 42989
+externalPort = 3002
+
 [agent]
 integrations = ["styling_replit==1.0.0"]
