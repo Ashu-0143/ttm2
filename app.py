@@ -275,6 +275,12 @@ def generate_timetable_view():
     if not session['sections']:
         flash('No sections available. Please add at least one section.', 'error')
         return redirect(url_for('sections'))
+    
+    # Force regeneration by clearing any existing generated timetables
+    if 'generated_sections' in session:
+        del session['generated_sections']
+    session.modified = True
+    
     try:
         # Reset teacher loads
         for teacher_data in session['teachers']:
@@ -312,18 +318,27 @@ def generate_timetable_view():
         conflict_summary = get_conflict_summary(conflicts)
         suggestions = suggest_conflict_resolution(conflicts, generated_sections) if conflicts else []
         
-        # Store generated sections in session for editing
+        # Store generated sections in session for editing with complete teacher assignment data
         session['generated_sections'] = []
         for section in generated_sections:
-            # Convert section to serializable format
+            # Convert section to serializable format with complete teacher assignments
+            subject_assignments = []
+            for subject in section.subjects:
+                if subject.teacher:
+                    subject_assignments.append({
+                        'subject': subject.name,
+                        'teacher': subject.teacher.name
+                    })
+            
             section_data = {
                 'name': section.name,
                 'year': section.year,
                 'subject_names': [s.name for s in section.subjects],
+                'subject_assignments': subject_assignments,
                 'timetable': []
             }
             
-            # Store timetable with subject names (not objects)
+            # Store timetable with complete subject and teacher data
             for day in range(6):
                 day_schedule = []
                 for period in range(7):
@@ -331,8 +346,9 @@ def generate_timetable_view():
                     if subject:
                         day_schedule.append({
                             'name': subject.name,
-                            'teacher': subject.teacher.name,
-                            'is_lab': subject.is_lab
+                            'teacher': subject.teacher.name if subject.teacher else 'Unassigned',
+                            'is_lab': subject.is_lab,
+                            'block_size': getattr(subject, 'block_size', 1)
                         })
                     else:
                         day_schedule.append(None)
