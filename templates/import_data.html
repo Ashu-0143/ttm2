@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Import Data - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i>Import Timetable Data
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Import your saved data:</strong> Upload a JSON file previously exported from this application to restore all your teachers, subjects, sections, and saved timetables.
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data" class="mb-4">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select JSON File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".json" required>
+                        <div class="form-text">Only JSON files exported from this application are supported.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>Import Data
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> Importing will replace all current data in your session. Make sure to export your current data first if you want to keep it.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

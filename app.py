@@ -671,5 +671,99 @@ def remove_teacher_from_subject(subject_name, teacher_name):
             break
     return redirect(url_for('subjects'))
 
+@app.route('/export_data')
+def export_data():
+    """Export all session data as a JSON file"""
+    import json
+    import time
+    from flask import Response
+    
+    init_session()
+    
+    # Collect all data from session
+    export_data = {
+        'teachers': session.get('teachers', []),
+        'subjects': session.get('subjects', []),
+        'sections': session.get('sections', []),
+        'saved_timetables': session.get('saved_timetables', []),
+        'generated_sections': session.get('generated_sections', []),
+        'export_timestamp': int(time.time()),
+        'version': '1.0'
+    }
+    
+    json_str = json.dumps(export_data, indent=2)
+    timestamp = time.strftime('%Y%m%d_%H%M%S')
+    filename = f'timetable_data_{timestamp}.json'
+    
+    return Response(
+        json_str,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+@app.route('/import_data', methods=['GET', 'POST'])
+def import_data():
+    """Import data from uploaded JSON file"""
+    import json
+    
+    init_session()
+    
+    if request.method == 'GET':
+        return render_template('import_data.html')
+    
+    if 'file' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(url_for('import_data'))
+    
+    file = request.files['file']
+    if file.filename == '' or file.filename is None:
+        flash('No file selected', 'error')
+        return redirect(url_for('import_data'))
+    
+    if not file.filename.lower().endswith('.json'):
+        flash('Please upload a JSON file', 'error')
+        return redirect(url_for('import_data'))
+    
+    try:
+        # Read and parse JSON data
+        file_content = file.read().decode('utf-8')
+        imported_data = json.loads(file_content)
+        
+        # Validate required fields
+        required_fields = ['teachers', 'subjects', 'sections', 'saved_timetables']
+        for field in required_fields:
+            if field not in imported_data:
+                flash(f'Invalid file format: missing {field} data', 'error')
+                return redirect(url_for('import_data'))
+        
+        # Import data into session
+        session['teachers'] = imported_data['teachers']
+        session['subjects'] = imported_data['subjects']
+        session['sections'] = imported_data['sections']
+        session['saved_timetables'] = imported_data['saved_timetables']
+        
+        # Import generated sections if available
+        if 'generated_sections' in imported_data:
+            session['generated_sections'] = imported_data['generated_sections']
+        
+        session.modified = True
+        
+        # Show summary of imported data
+        summary = []
+        summary.append(f"{len(imported_data['teachers'])} teachers")
+        summary.append(f"{len(imported_data['subjects'])} subjects")
+        summary.append(f"{len(imported_data['sections'])} sections")
+        summary.append(f"{len(imported_data['saved_timetables'])} saved timetables")
+        
+        flash(f'Successfully imported: {", ".join(summary)}', 'success')
+        return redirect(url_for('index'))
+        
+    except json.JSONDecodeError:
+        flash('Invalid JSON file format', 'error')
+        return redirect(url_for('import_data'))
+    except Exception as e:
+        flash(f'Error importing file: {str(e)}', 'error')
+        return redirect(url_for('import_data'))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
