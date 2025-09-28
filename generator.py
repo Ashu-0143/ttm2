@@ -1,212 +1,6 @@
 import random
 
-def generate_clash_free_timetable(sections):
-    """
-    Generate clash-free timetables using constraint-driven scheduling with lunch-aware lab placement.
-    This algorithm ensures no teacher conflicts and respects lunch break constraints.
-    """
-    days = 6
-    periods = 7  # 7 teaching periods
-    
-    # Global teacher availability tracker
-    # teacher_schedule[teacher_name][day][period] = section_name or None
-    teacher_schedule = {}
-    
-    # Initialize teacher schedules
-    for section in sections:
-        for subject in section.subjects:
-            teacher_name = subject.teacher.name
-            if teacher_name not in teacher_schedule:
-                teacher_schedule[teacher_name] = [[None for _ in range(periods)] for _ in range(days)]
-    
-    # Clear existing timetables and reset teacher loads
-    for section in sections:
-        section.timetable = [[None for _ in range(periods)] for _ in range(days)]
-        for subject in section.subjects:
-            subject.teacher.current_load = 0
-    
-    # Phase 1: Constraint-driven lab placement with MRV heuristic
-    lab_tasks = []
-    for section in sections:
-        lab_subjects = [s for s in section.subjects if s.is_lab]
-        for lab_subject in lab_subjects:
-            lab_tasks.append((section, lab_subject))
-    
-    # Sort lab tasks by block size (descending) and then by fewest feasible positions (MRV)
-    def get_feasible_positions(section, lab_subject):
-        allowed_starts = section.get_allowed_lab_starts(lab_subject.block_size)
-        count = 0
-        for day in range(days):
-            for start in allowed_starts:
-                if start + lab_subject.block_size <= periods:
-                    # Check if slots would be available (ignoring teacher for MRV calculation)
-                    if all(section.timetable[day][p] is None for p in range(start, start + lab_subject.block_size)):
-                        count += 1
-        return count
-    
-    lab_tasks.sort(key=lambda x: (-x[1].block_size, get_feasible_positions(x[0], x[1])))
-    
-    # Place lab subjects with constraint satisfaction and limited backtracking
-    placed_labs = []
-    for section, lab_subject in lab_tasks:
-        teacher_name = lab_subject.teacher.name
-        placed = False
-        allowed_starts = section.get_allowed_lab_starts(lab_subject.block_size)
-        
-        # Generate all valid placement options (try allowed starts first)
-        candidates = []
-        for day in range(days):
-            for start in allowed_starts:
-                if start + lab_subject.block_size <= periods:
-                    # Check constraints
-                    section_slots_free = all(
-                        section.timetable[day][p] is None 
-                        for p in range(start, start + lab_subject.block_size)
-                    )
-                    teacher_available = all(
-                        teacher_schedule[teacher_name][day][p] is None 
-                        for p in range(start, start + lab_subject.block_size)
-                    )
-                    teacher_can_handle = lab_subject.teacher.can_teach(lab_subject.block_size)
-                    
-                    if section_slots_free and teacher_available and teacher_can_handle:
-                        candidates.append((day, start))
-        
-        # If no candidates with allowed starts, try any valid position
-        if not candidates:
-            for day in range(days):
-                for start in range(periods - lab_subject.block_size + 1):
-                    # Check constraints
-                    section_slots_free = all(
-                        section.timetable[day][p] is None 
-                        for p in range(start, start + lab_subject.block_size)
-                    )
-                    teacher_available = all(
-                        teacher_schedule[teacher_name][day][p] is None 
-                        for p in range(start, start + lab_subject.block_size)
-                    )
-                    teacher_can_handle = lab_subject.teacher.can_teach(lab_subject.block_size)
-                    
-                    if section_slots_free and teacher_available and teacher_can_handle:
-                        candidates.append((day, start))
-        
-        if candidates:
-            # Choose randomly from valid candidates to add variety
-            day, start = random.choice(candidates)
-            # Place the lab subject
-            for p in range(start, start + lab_subject.block_size):
-                section.timetable[day][p] = lab_subject
-                teacher_schedule[teacher_name][day][p] = section.name
-            lab_subject.teacher.current_load += lab_subject.block_size
-            placed_labs.append((section, lab_subject, day, start))
-            placed = True
-        else:
-            # Limited backtracking: try removing last few labs and retry
-            if len(placed_labs) > 0:
-                # Remove last lab and retry
-                last_section, last_subject, last_day, last_start = placed_labs.pop()
-                last_teacher = last_subject.teacher.name
-                # Clear the placement
-                for p in range(last_start, last_start + last_subject.block_size):
-                    last_section.timetable[last_day][p] = None
-                    teacher_schedule[last_teacher][last_day][p] = None
-                last_subject.teacher.current_load -= last_subject.block_size
-                
-                # Re-insert the removed lab task to try later
-                lab_tasks.append((last_section, last_subject))
-                # Retry current lab
-                lab_tasks.append((section, lab_subject))
-                continue
-            else:
-                raise Exception(f"Could not place lab subject {lab_subject.name} in section {section.name}. Try reducing lab block sizes or teacher loads.")
-    
-    # Phase 2: Enhanced theory subject placement with better distribution
-    for section in sections:
-        theory_subjects = [s for s in section.subjects if not s.is_lab]
-        
-        for theory_subject in theory_subjects:
-            teacher_name = theory_subject.teacher.name
-            periods_to_place = theory_subject.periods_per_week
-            periods_placed = 0
-            
-            # Track days where this subject has been placed to encourage distribution
-            days_used = set()
-            
-            while periods_placed < periods_to_place:
-                placed = False
-                candidates = []
-                
-                # Generate weighted candidates (prefer empty days and slots)
-                for day in range(days):
-                    for period in range(periods):
-                        # Check basic constraints
-                        section_slot_free = section.timetable[day][period] is None
-                        teacher_available = teacher_schedule[teacher_name][day][period] is None
-                        teacher_can_handle = theory_subject.teacher.can_teach(1)
-                        
-                        if section_slot_free and teacher_available and teacher_can_handle:
-                            # Calculate weight (prefer days not yet used for this subject)
-                            weight = 2 if day not in days_used else 1
-                            
-                            # Avoid placing same subject multiple times per day if possible
-                            same_subject_today = any(
-                                section.timetable[day][p] == theory_subject for p in range(periods)
-                            )
-                            if same_subject_today:
-                                weight *= 0.5
-                            
-                            candidates.append((day, period, weight))
-                
-                if candidates:
-                    # Weighted random selection
-                    total_weight = sum(w for _, _, w in candidates)
-                    if total_weight > 0:
-                        r = random.uniform(0, total_weight)
-                        cumulative = 0
-                        for day, period, weight in candidates:
-                            cumulative += weight
-                            if r <= cumulative:
-                                # Place the subject
-                                section.timetable[day][period] = theory_subject
-                                teacher_schedule[teacher_name][day][period] = section.name
-                                theory_subject.teacher.current_load += 1
-                                periods_placed += 1
-                                days_used.add(day)
-                                placed = True
-                                break
-                
-                if not placed:
-                    # Fallback: try any available slot, ignoring teacher load constraints if necessary
-                    fallback_attempts = 0
-                    while not placed and fallback_attempts < 50:
-                        day = random.randint(0, days-1)
-                        period = random.randint(0, periods-1)
-                        
-                        section_slot_free = section.timetable[day][period] is None
-                        teacher_available = teacher_schedule[teacher_name][day][period] is None
-                        
-                        if section_slot_free and teacher_available:
-                            # First try with load constraint
-                            if theory_subject.teacher.can_teach(1):
-                                section.timetable[day][period] = theory_subject
-                                teacher_schedule[teacher_name][day][period] = section.name
-                                theory_subject.teacher.current_load += 1
-                                periods_placed += 1
-                                placed = True
-                            # If load constraint fails, ignore it for this period
-                            elif fallback_attempts > 25:
-                                section.timetable[day][period] = theory_subject
-                                teacher_schedule[teacher_name][day][period] = section.name
-                                theory_subject.teacher.current_load += 1
-                                periods_placed += 1
-                                placed = True
-                        
-                        fallback_attempts += 1
-                    
-                    if not placed:
-                        raise Exception(f"Could not place all periods for {theory_subject.name} in section {section.name}. Try adjusting teacher loads or periods per week.")
-    
-    return sections
+# Old function removed - consolidated into improved version
 
 def generate_clash_free_timetable_improved(sections):
     """
@@ -408,107 +202,63 @@ def calculate_placement_weight(day, period, days_used, day_count, max_per_day):
 def generate_timetable(sections):
     """
     Main timetable generation function.
-    Uses improved clash-free algorithm with multiple attempts and different random seeds.
-    Guarantees conflict-free timetables or fails with clear error message.
+    Uses improved clash-free algorithm with multiple attempts, conflict verification,
+    and guaranteed conflict-free results or clear failure with guidance.
     """
-    max_attempts = 5
+    # Import conflicts module for verification
+    from conflicts import detect_teacher_conflicts
+    
+    max_attempts = 8
     original_random_state = random.getstate()
+    
+    print(f"Starting timetable generation with {len(sections)} sections...")
     
     for attempt in range(max_attempts):
         try:
-            # Use different random seed for each attempt
-            random.seed(random.randint(1, 10000) + attempt * 1000)
+            # Use different random seed for each attempt for variety
+            seed = random.randint(1, 50000) + attempt * 1000
+            random.seed(seed)
+            print(f"Attempt {attempt + 1}/{max_attempts} with seed {seed}")
             
-            # Try the improved clash-free algorithm
-            result = generate_clash_free_timetable_improved(sections)
+            # Clear all state before generation attempt
+            clear_all_state(sections)
             
-            # Restore original random state
-            random.setstate(original_random_state)
-            return result
+            # Generate using improved clash-free algorithm
+            result_sections = generate_clash_free_timetable_improved(sections)
             
-        except Exception as e:
-            # Clear any partial state before next attempt
-            for section in sections:
-                section.timetable = [[None for _ in range(7)] for _ in range(6)]
-                for subject in section.subjects:
-                    subject.teacher.current_load = 0
+            # Verify no conflicts exist
+            conflicts = detect_teacher_conflicts(result_sections)
             
-            if attempt == max_attempts - 1:
+            if not conflicts:
+                print(f"✓ Success! Generated conflict-free timetable on attempt {attempt + 1}")
                 # Restore original random state
                 random.setstate(original_random_state)
-                raise Exception(f"Could not generate conflict-free timetable after {max_attempts} attempts. Last error: {e}. Try reducing teacher loads or adjusting subject periods.")
+                return result_sections
+            else:
+                print(f"✗ Attempt {attempt + 1} failed: {len(conflicts)} conflicts detected")
+                
+        except Exception as e:
+            print(f"✗ Attempt {attempt + 1} failed with error: {str(e)}")
+            
+        # Clear state before next attempt
+        clear_all_state(sections)
     
-    # Restore original random state (should never reach here)
+    # All attempts failed
     random.setstate(original_random_state)
-    return sections
+    clear_all_state(sections)
+    
+    raise Exception(f"Could not generate conflict-free timetable after {max_attempts} attempts. "
+                   f"This usually means:\n"
+                   f"1. Teacher loads are too restrictive (try increasing max_load)\n"
+                   f"2. Too many periods per week for subjects (try reducing)\n"
+                   f"3. Lab block sizes are too large (try smaller blocks)\n"
+                   f"4. Not enough teachers for the workload (try adding more teachers or reducing subject assignments)")
 
-def generate_timetable_original(sections):
-    """
-    Original timetable generation algorithm (fallback).
-    First places lab subjects (which require consecutive periods),
-    then places theory subjects one period at a time.
-    """
-    days = 6
-    periods = 7  # Updated to 7 periods
-
+def clear_all_state(sections):
+    """Clear all timetable and teacher load state for clean generation attempt."""
     for section in sections:
-        # Clear existing timetable
-        section.timetable = [[None for _ in range(periods)] for _ in range(days)]
-        
-        # Reset teacher loads for this generation
+        section.timetable = [[None for _ in range(7)] for _ in range(6)]
         for subject in section.subjects:
             subject.teacher.current_load = 0
 
-        # Step 1: Place labs first (they need consecutive periods)
-        lab_subjects = [s for s in section.subjects if s.is_lab]
-        for subj in lab_subjects:
-            placed = False
-            attempts = 0
-            max_attempts = 100  # Prevent infinite loops
-            
-            while not placed and attempts < max_attempts:
-                day = random.randint(0, days-1)
-                start = random.randint(0, periods - subj.block_size)
-                
-                # Check if all required consecutive periods are available
-                if all(section.timetable[day][p] is None for p in range(start, start + subj.block_size)):
-                    # Check if teacher is available for all these periods (be more flexible on load)
-                    if subj.teacher.can_teach(subj.block_size) or attempts > max_attempts // 2:
-                        # Place the lab subject in consecutive periods
-                        for p in range(start, start + subj.block_size):
-                            section.timetable[day][p] = subj
-                        subj.teacher.current_load += subj.block_size
-                        placed = True
-                
-                attempts += 1
-            
-            if not placed:
-                raise Exception(f"Could not place lab subject {subj.name} in section {section.name}. Try adjusting teacher loads or lab block sizes.")
-
-        # Step 2: Place theory subjects (one period at a time)
-        theory_subjects = [s for s in section.subjects if not s.is_lab]
-        for subj in theory_subjects:
-            periods_placed = 0
-            
-            while periods_placed < subj.periods_per_week:
-                placed = False
-                attempts = 0
-                max_attempts = 100
-                
-                while not placed and attempts < max_attempts:
-                    day = random.randint(0, days-1)
-                    period = random.randint(0, periods-1)
-                    
-                    # Check if slot is empty and teacher can teach
-                    if section.timetable[day][period] is None and subj.teacher.can_teach(1):
-                        section.timetable[day][period] = subj
-                        subj.teacher.current_load += 1
-                        periods_placed += 1
-                        placed = True
-                    
-                    attempts += 1
-                
-                if not placed:
-                    raise Exception(f"Could not place all periods for subject {subj.name} in section {section.name}. Try adjusting teacher loads.")
-
-    return sections
+# Old original function removed - only conflict-free generation is now used
