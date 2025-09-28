@@ -41,28 +41,17 @@ def generate_clash_free_timetable_improved(sections):
         candidates = []
         allowed_starts = section.get_allowed_lab_starts(lab_subject.block_size)
         
-        # First try with allowed starts (respecting lunch constraints)
+        # Try with allowed starts (respecting lunch constraints) - be more flexible with teacher loads
         for day in range(days):
             for start in allowed_starts:
                 if start + lab_subject.block_size <= periods:
-                    if check_lab_placement_feasible(section, lab_subject, teacher_schedule, teacher_name, day, start):
-                        candidates.append((day, start, 'preferred'))
+                    if check_lab_placement_feasible_flexible(section, lab_subject, teacher_schedule, teacher_name, day, start):
+                        candidates.append((day, start, 'lunch_safe'))
         
-        # If no preferred slots, try any valid position
-        if not candidates:
-            for day in range(days):
-                for start in range(periods - lab_subject.block_size + 1):
-                    if check_lab_placement_feasible(section, lab_subject, teacher_schedule, teacher_name, day, start):
-                        candidates.append((day, start, 'fallback'))
-        
-        # Place lab with priority to preferred slots
+        # Place lab only in lunch-safe slots
         if candidates:
-            # Prefer 'preferred' slots, then randomly select
-            preferred = [c for c in candidates if c[2] == 'preferred']
-            if preferred:
-                day, start, _ = random.choice(preferred)
-            else:
-                day, start, _ = random.choice(candidates)
+            # All candidates are lunch-safe, randomly select one
+            day, start, _ = random.choice(candidates)
             
             # Place the lab subject
             for p in range(start, start + lab_subject.block_size):
@@ -72,7 +61,19 @@ def generate_clash_free_timetable_improved(sections):
             placed = True
         
         if not placed:
-            raise Exception(f"Could not place lab subject {lab_subject.name} (block size {lab_subject.block_size}) in section {section.name}. Try reducing lab block sizes or teacher loads.")
+            # Provide specific guidance based on the lab configuration
+            lunch_period = section.get_lunch_period_position()
+            year_info = f"1st year (lunch after period {lunch_period})" if lunch_period == 3 else f"2nd+ year (lunch after period {lunch_period})"
+            
+            if lab_subject.block_size == 4:
+                if lunch_period == 3:  # 1st year
+                    guidance = "For 1st year sections, 4-period labs must be placed in afternoon periods 3-6 (after lunch)."
+                else:  # 2nd+ year
+                    guidance = "For 2nd+ year sections, 4-period labs must be placed in morning periods 0-3 (before lunch)."
+            else:
+                guidance = f"Lab block size {lab_subject.block_size} cannot span across lunch break at period {lunch_period}."
+            
+            raise Exception(f"Could not place lab subject '{lab_subject.name}' (block size {lab_subject.block_size}) in section '{section.name}' ({year_info}). {guidance} Try reducing teacher loads or using compatible lab block sizes.")
     
     # Phase 2: Enhanced theory subject placement with smart distribution
     for section in sections:
@@ -160,8 +161,8 @@ def generate_clash_free_timetable_improved(sections):
     
     return sections
 
-def check_lab_placement_feasible(section, lab_subject, teacher_schedule, teacher_name, day, start):
-    """Check if a lab can be placed at the given position without conflicts."""
+def check_lab_placement_feasible_flexible(section, lab_subject, teacher_schedule, teacher_name, day, start):
+    """Check if a lab can be placed at the given position without conflicts, with flexible teacher load constraints."""
     # Check section slots are free
     section_slots_free = all(
         section.timetable[day][p] is None 
@@ -174,11 +175,15 @@ def check_lab_placement_feasible(section, lab_subject, teacher_schedule, teacher
         for p in range(start, start + lab_subject.block_size)
     )
     
-    # Check teacher load with flexibility
+    # More flexible teacher load checking - allow up to 50% over capacity for labs to improve placement success
     teacher_can_handle = (lab_subject.teacher.can_teach(lab_subject.block_size) or 
-                         lab_subject.teacher.current_load + lab_subject.block_size <= lab_subject.teacher.max_load * 1.2)
+                         lab_subject.teacher.current_load + lab_subject.block_size <= lab_subject.teacher.max_load * 1.5)
     
-    return section_slots_free and teacher_available and teacher_can_handle
+    # CRITICAL: Validate that this placement doesn't span across lunch for this section
+    lunch_position = section.get_lunch_period_position()
+    spans_lunch = (start < lunch_position < start + lab_subject.block_size)
+    
+    return section_slots_free and teacher_available and teacher_can_handle and not spans_lunch
 
 def calculate_placement_weight(day, period, days_used, day_count, max_per_day):
     """Calculate placement weight for smart theory subject distribution."""
