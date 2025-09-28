@@ -287,27 +287,36 @@ def generate_timetable_view():
             teacher_data['current_load'] = 0
         # Create objects from session data
         teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
-        subjects = []
+        
+        # Create a subject template lookup for creating section-specific instances
+        subject_templates = {}
         for subject_data in session['subjects']:
-            subject = Subject(
-                subject_data['name'],
-                subject_data['periods_per_week'],
-                subject_data['is_lab'],
-                subject_data['block_size']
-            )
-            subjects.append(subject)
+            subject_templates[subject_data['name']] = subject_data
+            
         sections = []
         for section_data in session['sections']:
             subject_assignments = []
             for assignment in section_data.get('subject_assignments', []):
-                subj = next((s for s in subjects if s.name == assignment['subject']), None)
-                teacher_obj = None
-                if subj and assignment['teacher']:
-                    teacher_obj = teachers.get(assignment['teacher'])
-                if subj and teacher_obj:
-                    # Always assign the teacher from the section assignment
-                    subj.teacher = teacher_obj
-                    subject_assignments.append((subj, teacher_obj))
+                subject_name = assignment['subject']
+                teacher_name = assignment['teacher']
+                
+                # Create a NEW subject instance for this specific section assignment
+                if subject_name in subject_templates and teacher_name:
+                    template = subject_templates[subject_name]
+                    # Create a separate subject instance for this section
+                    subject_instance = Subject(
+                        template['name'],
+                        template['periods_per_week'],
+                        template['is_lab'],
+                        template['block_size']
+                    )
+                    
+                    teacher_obj = teachers.get(teacher_name)
+                    if teacher_obj:
+                        # Assign the specific teacher to this section's subject instance
+                        subject_instance.teacher = teacher_obj
+                        subject_assignments.append((subject_instance, teacher_obj))
+                        
             section = Section(section_data['name'], section_data['year'], subject_assignments)
             sections.append(section)
         # Generate timetables
@@ -389,48 +398,52 @@ def edit_timetable():
     
     # Reconstruct sections from session data for conflict detection
     teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
-    subjects_dict = {}
+    
+    # Create subject templates for reference
+    subject_templates = {}
     for subject_data in session['subjects']:
-        subject = Subject(
-            subject_data['name'],
-            subject_data['periods_per_week'],
-            subject_data['is_lab'],
-            subject_data['block_size']
-        )
-        subjects_dict[subject.name] = subject
+        subject_templates[subject_data['name']] = subject_data
     
     sections = []
     for section_data in session['generated_sections']:
         # Create subject assignments with proper teacher assignments from stored data
+        section_subject_instances = {}  # Track subject instances for this specific section
         subject_assignments = []
+        
         for assignment in section_data.get('subject_assignments', []):
-            subj = subjects_dict.get(assignment['subject'])
-            teacher_obj = teachers.get(assignment['teacher'])
-            if subj and teacher_obj:
-                # Make a copy of the subject to avoid modifying the original
-                subject_copy = Subject(
-                    subj.name,
-                    subj.periods_per_week,
-                    subj.is_lab,
-                    subj.block_size
+            subject_name = assignment['subject']
+            teacher_name = assignment['teacher']
+            
+            if subject_name in subject_templates and teacher_name in teachers:
+                template = subject_templates[subject_name]
+                # Create a NEW subject instance specifically for this section
+                subject_instance = Subject(
+                    template['name'],
+                    template['periods_per_week'],
+                    template['is_lab'],
+                    template['block_size']
                 )
-                subject_copy.teacher = teacher_obj
-                subjects_dict[subj.name] = subject_copy  # Update the dict with teacher assigned
-                subject_assignments.append((subject_copy, teacher_obj))
+                subject_instance.teacher = teachers[teacher_name]
+                section_subject_instances[subject_name] = subject_instance
+                subject_assignments.append((subject_instance, teachers[teacher_name]))
         
         section = Section(section_data['name'], section_data['year'], subject_assignments)
-        # Reconstruct timetable from stored data with teacher information preserved
+        
+        # Reconstruct timetable from stored data with proper section-specific subject instances
         for day in range(6):
             for period in range(7):
                 stored_subject = section_data['timetable'][day][period]
                 if stored_subject:
-                    subject = subjects_dict.get(stored_subject['name'])
-                    if subject:
+                    subject_name = stored_subject['name']
+                    teacher_name = stored_subject.get('teacher', '')
+                    
+                    # Use the section-specific subject instance
+                    if subject_name in section_subject_instances:
+                        subject_instance = section_subject_instances[subject_name]
                         # Ensure teacher is properly assigned from stored data
-                        teacher_name = stored_subject.get('teacher', '')
                         if teacher_name and teacher_name in teachers:
-                            subject.teacher = teachers[teacher_name]
-                        section.timetable[day][period] = subject
+                            subject_instance.teacher = teachers[teacher_name]
+                        section.timetable[day][period] = subject_instance
         sections.append(section)
     
     # Detect current conflicts
