@@ -407,17 +407,30 @@ def edit_timetable():
             subj = subjects_dict.get(assignment['subject'])
             teacher_obj = teachers.get(assignment['teacher'])
             if subj and teacher_obj:
-                subj.teacher = teacher_obj
-                subject_assignments.append((subj, teacher_obj))
+                # Make a copy of the subject to avoid modifying the original
+                subject_copy = Subject(
+                    subj.name,
+                    subj.periods_per_week,
+                    subj.is_lab,
+                    subj.block_size
+                )
+                subject_copy.teacher = teacher_obj
+                subjects_dict[subj.name] = subject_copy  # Update the dict with teacher assigned
+                subject_assignments.append((subject_copy, teacher_obj))
         
         section = Section(section_data['name'], section_data['year'], subject_assignments)
-        # Reconstruct timetable from stored data
+        # Reconstruct timetable from stored data with teacher information preserved
         for day in range(6):
             for period in range(7):
                 stored_subject = section_data['timetable'][day][period]
                 if stored_subject:
                     subject = subjects_dict.get(stored_subject['name'])
-                    section.timetable[day][period] = subject
+                    if subject:
+                        # Ensure teacher is properly assigned from stored data
+                        teacher_name = stored_subject.get('teacher', '')
+                        if teacher_name and teacher_name in teachers:
+                            subject.teacher = teachers[teacher_name]
+                        section.timetable[day][period] = subject
         sections.append(section)
     
     # Detect current conflicts
