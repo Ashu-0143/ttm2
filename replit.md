@@ -5,10 +5,12 @@ This is a Flask-based web application for generating academic timetables for sch
 # Recent Changes
 
 **October 2, 2025**: GitHub import successfully configured for Replit environment
+- Installed Python dependencies (Flask, Gunicorn, Flask-SQLAlchemy, etc.)
 - Configured Flask application with ProxyFix middleware for Replit's proxy environment
 - Set up workflow to run on port 5000 with webview output
 - Configured autoscale deployment using Gunicorn
 - Verified all functionality working correctly (teachers, subjects, sections, timetable generation)
+- Application successfully running and accessible
 
 # User Preferences
 
