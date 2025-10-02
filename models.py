@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 class Teacher:
     def __init__(self, name, max_load=28, subjects=None):
         self.name = name
@@ -25,8 +27,8 @@ class Subject:
         self.periods_per_week = periods_per_week
         self.is_lab = is_lab
         self.block_size = block_size
-        self.teachers = []  # List of teacher names assigned to this subject
-        self.teacher = None  # Currently assigned teacher object
+        self.teachers: List[str] = []  # List of teacher names assigned to this subject
+        self.teacher: Optional[Teacher] = None  # Currently assigned teacher object
 
 
 class Section:
