@@ -2,6 +2,14 @@
 
 This is a Flask-based web application for generating academic timetables for schools or colleges. The system manages teachers, subjects, sections, and automatically generates weekly timetables using a constraint-based algorithm. It handles both regular theory subjects and lab subjects that require consecutive periods, ensuring teacher workload limits are respected.
 
+# Recent Changes
+
+**October 2, 2025**: GitHub import successfully configured for Replit environment
+- Configured Flask application with ProxyFix middleware for Replit's proxy environment
+- Set up workflow to run on port 5000 with webview output
+- Configured autoscale deployment using Gunicorn
+- Verified all functionality working correctly (teachers, subjects, sections, timetable generation)
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -45,3 +53,24 @@ Preferred communication style: Simple, everyday language.
 - **Python Standard Library**: Random module for timetable generation algorithm
 
 No database or external API integrations are currently implemented - all data is stored in Flask sessions.
+
+## Replit Environment Setup
+
+### Development Workflow
+- **Server**: Gunicorn running on 0.0.0.0:5000
+- **Configuration**: ProxyFix middleware configured for Replit's proxy environment
+- **Reload**: Automatic reload enabled for development
+- **Session Secret**: Uses environment variable `SESSION_SECRET`
+
+### Deployment Configuration
+- **Type**: Autoscale deployment (stateless web app)
+- **Command**: `gunicorn --bind 0.0.0.0:5000 main:app`
+- **Port**: 5000 (frontend webview)
+
+### Dependencies
+Managed via pyproject.toml and uv:
+- Flask 3.1.2+
+- Flask-SQLAlchemy 3.1.1+ (available but not actively used)
+- Gunicorn 23.0.0+
+- psycopg2-binary 2.9.10+ (available but not actively used)
+- email-validator 2.3.0+
