@@ -1,4 +1,5 @@
 import random
+import time
 
 # Old function removed - consolidated into improved version
 
@@ -220,8 +221,8 @@ def generate_timetable(sections):
     
     for attempt in range(max_attempts):
         try:
-            # Use different random seed for each attempt for variety
-            seed = random.randint(1, 50000) + attempt * 1000
+            # Use timestamp-based random seed for each attempt to ensure unique results every time
+            seed = int(time.time() * 1000000) + attempt * 1000 + random.randint(1, 10000)
             random.seed(seed)
             print(f"Attempt {attempt + 1}/{max_attempts} with seed {seed}")
             

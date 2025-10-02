@@ -597,7 +597,7 @@ def load_saved_timetable(saved_id):
     session.modified = True
     
     flash(f'Loaded: {saved_timetable["name"]}', 'success')
-    return redirect(url_for('edit_timetable'))
+    return redirect(url_for('view_saved_timetable', saved_id=saved_id))
 
 @app.route('/saved_timetables')
 def saved_timetables():
@@ -806,6 +806,190 @@ def import_data():
     except Exception as e:
         flash(f'Error importing file: {str(e)}', 'error')
         return redirect(url_for('import_data'))
+
+@app.route('/view_saved_timetable/<int:saved_id>')
+def view_saved_timetable(saved_id):
+    """View a saved timetable in read-only mode"""
+    init_session()
+    
+    saved_timetable = next((st for st in session['saved_timetables'] if st['id'] == saved_id), None)
+    if not saved_timetable:
+        flash('Saved timetable not found.', 'error')
+        return redirect(url_for('saved_timetables'))
+    
+    # Reconstruct sections from saved timetable data for display
+    teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
+    
+    subject_templates = {}
+    for subject_data in session['subjects']:
+        subject_templates[subject_data['name']] = subject_data
+    
+    sections = []
+    for section_data in saved_timetable['sections']:
+        section_subject_instances = {}
+        subject_assignments = []
+        
+        for assignment in section_data.get('subject_assignments', []):
+            subject_name = assignment['subject']
+            teacher_name = assignment['teacher']
+            
+            if subject_name in subject_templates and teacher_name in teachers:
+                template = subject_templates[subject_name]
+                subject_instance = Subject(
+                    template['name'],
+                    template['periods_per_week'],
+                    template['is_lab'],
+                    template['block_size']
+                )
+                subject_instance.teacher = teachers[teacher_name]
+                section_subject_instances[subject_name] = subject_instance
+                subject_assignments.append((subject_instance, teachers[teacher_name]))
+        
+        section = Section(section_data['name'], section_data['year'], subject_assignments)
+        
+        for day in range(6):
+            for period in range(7):
+                stored_subject = section_data['timetable'][day][period]
+                if stored_subject:
+                    subject_name = stored_subject['name']
+                    if subject_name in section_subject_instances:
+                        section.timetable[day][period] = section_subject_instances[subject_name]
+        
+        sections.append(section)
+    
+    conflicts = detect_teacher_conflicts(sections)
+    conflict_summary = get_conflict_summary(conflicts)
+    
+    timetables = []
+    for section in sections:
+        timetable_data = format_timetable_for_web(section)
+        timetables.append(timetable_data)
+    
+    return render_template('view_saved_timetable.html', 
+                         timetables=timetables,
+                         conflicts=conflict_summary,
+                         has_conflicts=len(conflicts) > 0,
+                         saved_id=saved_id,
+                         saved_name=saved_timetable['name'])
+
+@app.route('/regenerate_saved_timetable/<int:saved_id>')
+def regenerate_saved_timetable(saved_id):
+    """Regenerate a saved timetable with new randomization"""
+    init_session()
+    
+    saved_timetable = next((st for st in session['saved_timetables'] if st['id'] == saved_id), None)
+    if not saved_timetable:
+        flash('Saved timetable not found.', 'error')
+        return redirect(url_for('saved_timetables'))
+    
+    if not session['sections']:
+        flash('No sections available. Cannot regenerate.', 'error')
+        return redirect(url_for('sections'))
+    
+    try:
+        for teacher_data in session['teachers']:
+            teacher_data['current_load'] = 0
+        
+        teachers = {t['name']: Teacher(t['name'], t['max_load']) for t in session['teachers']}
+        subject_templates = {}
+        for subject_data in session['subjects']:
+            subject_templates[subject_data['name']] = subject_data
+            
+        sections = []
+        for section_data in session['sections']:
+            subject_assignments = []
+            for assignment in section_data.get('subject_assignments', []):
+                subject_name = assignment['subject']
+                teacher_name = assignment['teacher']
+                
+                if subject_name in subject_templates and teacher_name:
+                    template = subject_templates[subject_name]
+                    subject_instance = Subject(
+                        template['name'],
+                        template['periods_per_week'],
+                        template['is_lab'],
+                        template['block_size']
+                    )
+                    
+                    teacher_obj = teachers.get(teacher_name)
+                    if teacher_obj:
+                        subject_instance.teacher = teacher_obj
+                        subject_assignments.append((subject_instance, teacher_obj))
+                        
+            section = Section(section_data['name'], section_data['year'], subject_assignments)
+            sections.append(section)
+        
+        generated_sections = generate_timetable(sections)
+        
+        session['generated_sections'] = []
+        for section in generated_sections:
+            subject_assignments = []
+            for subject in section.subjects:
+                if subject.teacher:
+                    subject_assignments.append({
+                        'subject': subject.name,
+                        'teacher': subject.teacher.name
+                    })
+            
+            section_data = {
+                'name': section.name,
+                'year': section.year,
+                'subject_assignments': subject_assignments,
+                'timetable': []
+            }
+            
+            for day in range(6):
+                day_schedule = []
+                for period in range(7):
+                    cell = section.timetable[day][period]
+                    if cell:
+                        day_schedule.append({
+                            'name': cell.name,
+                            'is_lab': cell.is_lab,
+                            'teacher': cell.teacher.name if cell.teacher else ''
+                        })
+                    else:
+                        day_schedule.append(None)
+                section_data['timetable'].append(day_schedule)
+            
+            session['generated_sections'].append(section_data)
+        
+        session['saved_timetables'] = [st for st in session['saved_timetables'] if st['id'] != saved_id]
+        
+        import time
+        new_timestamp = int(time.time())
+        new_saved_timetable = {
+            'id': new_timestamp,
+            'name': f"Regenerated - {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(new_timestamp))}",
+            'sections': session['generated_sections'].copy(),
+            'created_at': new_timestamp
+        }
+        
+        session['saved_timetables'].append(new_saved_timetable)
+        session.modified = True
+        
+        flash('Timetable regenerated successfully with new randomization!', 'success')
+        return redirect(url_for('view_saved_timetable', saved_id=new_timestamp))
+        
+    except Exception as e:
+        flash(f'Error regenerating timetable: {str(e)}', 'error')
+        return redirect(url_for('saved_timetables'))
+
+@app.route('/reset_all_data', methods=['POST'])
+def reset_all_data():
+    """Reset all data - clears teachers, subjects, sections, saved timetables, and generated sections"""
+    init_session()
+    
+    session['teachers'] = []
+    session['subjects'] = []
+    session['sections'] = []
+    session['saved_timetables'] = []
+    if 'generated_sections' in session:
+        del session['generated_sections']
+    session.modified = True
+    
+    flash('All data has been reset successfully.', 'success')
+    return jsonify({'success': True, 'message': 'All data has been reset successfully.'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
