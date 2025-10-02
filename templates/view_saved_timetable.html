@@ -136,8 +136,10 @@
                                             {% endif %}
                                         </td>
                                     {% else %}
-                                        <td class="timetable-cell">
-                                            <div class="empty-cell">-</div>
+                                        <td class="timetable-cell text-center">
+                                            <div class="empty-cell p-2">
+                                                <small class="text-muted">Free</small>
+                                            </div>
                                         </td>
                                     {% endif %}
                                 {% endif %}
@@ -147,13 +149,79 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Subject Summary -->
+            <div class="mt-4">
+                <h6>Subject Summary:</h6>
+                <div class="row">
+                    {% set subject_data = {} %}
+                    {% for day in timetable.schedule %}
+                        {% for period in day %}
+                            {% if period and not period.is_lunch %}
+                                {% set _ = subject_data.update({period.name: {'count': subject_data.get(period.name, {}).get('count', 0) + 1, 'is_lab': period.is_lab}}) %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% for subject_name, data in subject_data.items() %}
+                        <div class="col-md-3 mb-2">
+                            <span class="badge {% if data.is_lab %}bg-warning text-dark{% else %}bg-primary{% endif %} me-1">
+                                {{ data.count }}
+                            </span>
+                            <i class="fas {% if data.is_lab %}fa-flask{% else %}fa-book{% endif %} me-1"></i>
+                            {{ subject_name }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
     {% endfor %}
 {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        No timetable data to display.
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Timetables</h5>
+            <p class="text-muted">This saved timetable has no data to display.</p>
+            <a href="{{ url_for('saved_timetables') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Saved Timetables
+            </a>
+        </div>
     </div>
 {% endif %}
+
+<style>
+@media print {
+    .btn, .navbar, .alert {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 2rem !important;
+    }
+    
+    .timetable-grid {
+        font-size: 12px;
+    }
+    
+    .subject-cell {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+    }
+    
+    .lab-cell {
+        background-color: #fff3cd !important;
+        color: #000 !important;
+    }
+    
+    .merged-lab-cell {
+        background-color: #ffeaa7 !important;
+        border: 2px solid #fdcb6e !important;
+        font-weight: bold !important;
+    }
+}
+</style>
 {% endblock %}
