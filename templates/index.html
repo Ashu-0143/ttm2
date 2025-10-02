@@ -3,68 +3,93 @@
 {% block title %}Timetable Generator - Home{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row animate__animated animate__fadeIn">
     <div class="col-12">
         <div class="text-center mb-5">
-            <h1 class="display-4 mb-4">
-                <i class="fas fa-calendar-alt text-primary me-3"></i>
+            <h1 class="display-4 mb-4 animate__animated animate__fadeInDown">
+                <lord-icon
+                    src="https://cdn.lordicon.com/wloilxuq.json"
+                    trigger="hover"
+                    colors="primary:#6366f1,secondary:#8b5cf6"
+                    style="width:80px;height:80px">
+                </lord-icon>
                 Timetable Generator
             </h1>
-            <p class="lead">Create and manage academic timetables with ease</p>
+            <p class="lead animate__animated animate__fadeInUp">Create and manage academic timetables with ease</p>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-chalkboard-teacher fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Manage Teachers</h5>
-                <p class="card-text">Add and manage teachers with their maximum teaching loads.</p>
-                <a href="{{ url_for('teachers') }}" class="btn btn-primary">
-                    <i class="fas fa-arrow-right me-1"></i>Go to Teachers
-                </a>
+    <div class="col-md-6 col-lg-3 animate__animated animate__fadeInUp" style="animation-delay: 0.1s">
+        <div class="feature-card h-100 text-center">
+            <div class="icon-wrapper mb-3 d-flex justify-content-center">
+                <lord-icon
+                    src="https://cdn.lordicon.com/eszyyflr.json"
+                    trigger="hover"
+                    colors="primary:#6366f1,secondary:#8b5cf6"
+                    style="width:80px;height:80px">
+                </lord-icon>
             </div>
+            <h5 class="card-title">Manage Teachers</h5>
+            <p class="card-text">Add and manage teachers with their maximum teaching loads.</p>
+            <a href="{{ url_for('teachers') }}" class="btn btn-primary mt-3">
+                <i class="fas fa-arrow-right me-1"></i>Go to Teachers
+            </a>
         </div>
     </div>
     
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-book fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Manage Subjects</h5>
-                <p class="card-text">Create subjects and assign them to teachers with lab configurations.</p>
-                <a href="{{ url_for('subjects') }}" class="btn btn-success">
-                    <i class="fas fa-arrow-right me-1"></i>Go to Subjects
-                </a>
+    <div class="col-md-6 col-lg-3 animate__animated animate__fadeInUp" style="animation-delay: 0.2s">
+        <div class="feature-card h-100 text-center">
+            <div class="icon-wrapper mb-3 d-flex justify-content-center">
+                <lord-icon
+                    src="https://cdn.lordicon.com/kiynvdns.json"
+                    trigger="hover"
+                    colors="primary:#10b981,secondary:#059669"
+                    style="width:80px;height:80px">
+                </lord-icon>
             </div>
+            <h5 class="card-title">Manage Subjects</h5>
+            <p class="card-text">Create subjects and assign them to teachers with lab configurations.</p>
+            <a href="{{ url_for('subjects') }}" class="btn btn-success mt-3">
+                <i class="fas fa-arrow-right me-1"></i>Go to Subjects
+            </a>
         </div>
     </div>
     
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-users fa-3x text-info mb-3"></i>
-                <h5 class="card-title">Manage Sections</h5>
-                <p class="card-text">Create class sections and assign multiple subjects to them.</p>
-                <a href="{{ url_for('sections') }}" class="btn btn-info">
-                    <i class="fas fa-arrow-right me-1"></i>Go to Sections
-                </a>
+    <div class="col-md-6 col-lg-3 animate__animated animate__fadeInUp" style="animation-delay: 0.3s">
+        <div class="feature-card h-100 text-center">
+            <div class="icon-wrapper mb-3 d-flex justify-content-center">
+                <lord-icon
+                    src="https://cdn.lordicon.com/dxjqoygy.json"
+                    trigger="hover"
+                    colors="primary:#06b6d4,secondary:#0891b2"
+                    style="width:80px;height:80px">
+                </lord-icon>
             </div>
+            <h5 class="card-title">Manage Sections</h5>
+            <p class="card-text">Create class sections and assign multiple subjects to them.</p>
+            <a href="{{ url_for('sections') }}" class="btn btn-info mt-3">
+                <i class="fas fa-arrow-right me-1"></i>Go to Sections
+            </a>
         </div>
     </div>
     
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-magic fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Generate Timetable</h5>
-                <p class="card-text">Automatically generate optimized timetables for all sections.</p>
-                <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning">
-                    <i class="fas fa-magic me-1"></i>Generate Now
-                </a>
+    <div class="col-md-6 col-lg-3 animate__animated animate__fadeInUp" style="animation-delay: 0.4s">
+        <div class="feature-card h-100 text-center">
+            <div class="icon-wrapper mb-3 d-flex justify-content-center">
+                <lord-icon
+                    src="https://cdn.lordicon.com/wxnxiano.json"
+                    trigger="hover"
+                    colors="primary:#f59e0b,secondary:#d97706"
+                    style="width:80px;height:80px">
+                </lord-icon>
             </div>
+            <h5 class="card-title">Generate Timetable</h5>
+            <p class="card-text">Automatically generate optimized timetables for all sections.</p>
+            <a href="{{ url_for('generate_timetable_view') }}" class="btn btn-warning mt-3" onclick="showLoadingSpinner()">
+                <i class="fas fa-magic me-1"></i>Generate Now
+            </a>
         </div>
     </div>
 </div>
