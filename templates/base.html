@@ -328,6 +328,9 @@
             padding: 0.5rem;
             border-radius: 6px;
             transition: all 0.3s ease;
+            position: relative;
+            width: 50px;
+            height: 44px;
         }
 
         .navbar-toggler:hover {
@@ -338,6 +341,55 @@
         .navbar-toggler:focus {
             box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
             outline: none;
+        }
+
+        /* Custom Hamburger Icon */
+        .navbar-toggler-icon {
+            background-image: none !important;
+            position: relative;
+            display: block;
+            width: 28px;
+            height: 2px;
+        }
+
+        .navbar-toggler-icon,
+        .navbar-toggler-icon::before,
+        .navbar-toggler-icon::after {
+            background-color: #667eea;
+            border-radius: 2px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .navbar-toggler-icon::before,
+        .navbar-toggler-icon::after {
+            content: '';
+            position: absolute;
+            width: 28px;
+            height: 2px;
+            left: 0;
+        }
+
+        .navbar-toggler-icon::before {
+            top: -8px;
+        }
+
+        .navbar-toggler-icon::after {
+            top: 8px;
+        }
+
+        /* Animate to X when NOT collapsed */
+        .navbar-toggler:not(.collapsed) .navbar-toggler-icon {
+            background-color: transparent;
+        }
+
+        .navbar-toggler:not(.collapsed) .navbar-toggler-icon::before {
+            transform: rotate(45deg);
+            top: 0;
+        }
+
+        .navbar-toggler:not(.collapsed) .navbar-toggler-icon::after {
+            transform: rotate(-45deg);
+            top: 0;
         }
 
         .navbar-collapse {
