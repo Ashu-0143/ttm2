@@ -124,6 +124,7 @@ Made with ❤️ by students of **Sai Ganapathi Polytechnic**.
 - [Varun](https://github.com/VARUN-KONADA)
 
 ---
-
+<!--
 👉 Dear, do you want me to also add screenshots/demo GIF placeholders in the README so that it looks more attractive for GitHub visitors?
 
+-->
