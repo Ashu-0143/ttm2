@@ -111,16 +111,17 @@ Now it’s growing into a tool that can actually save hours for our faculty.
 
 ---
 
-👨‍💻 Team
+## 👨‍💻 Team  
 
-Made with ❤️ by students of Sai Ganapathi polytechnic.
+Made with ❤️ by students of **Sai Ganapathi Polytechnic**.  
 
- TEAM LEAD : Ashok(https://github.com/Ashu-0143)
- MEMBERS :
-          Raji(https://github.com/raghavendra303008)
-          Mohan(https://github.com/Nmohan55)
-          Varun(https://github.com/VARUN-KONADA)
+### Team Lead  
+- [Ashok](https://github.com/Ashu-0143)  
 
+### Members  
+- [Raji](https://github.com/raghavendra303008)  
+- [Mohan](https://github.com/Nmohan55)  
+- [Varun](https://github.com/VARUN-KONADA)
 
 ---
 
